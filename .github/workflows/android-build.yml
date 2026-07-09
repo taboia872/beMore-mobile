@@ -38,6 +38,18 @@ jobs:
         run: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
 
+      - name: Create assets directory
+        run: mkdir -p android/app/src/main/assets
+
+      - name: Generate JS Bundle
+        run: |
+          npx react-native bundle \
+            --platform android \
+            --dev false \
+            --entry-file index.tsx \
+            --bundle-output android/app/src/main/assets/index.android.bundle \
+            --assets-dest android/app/src/main/res
+
       - name: Build Debug APK
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon -x lintAnalyzeRelease
