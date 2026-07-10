@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import RNFS from '@dr.pogodin/react-native-fs';
+import RNFS from 'react-native-fs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ModelInfo, DownloadStatus } from '../types';
 import { MODELS } from '../data/models';
