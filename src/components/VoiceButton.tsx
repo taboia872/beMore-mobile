@@ -1,6 +1,6 @@
 /**
  * VoiceButton — Botão de microfone para STT
- * Fluxo: tap → pede permissão → grava áuto (WAV) → transcreve → callback com texto
+ * Fluxo: tap → pede permissão → grava áudio (WAV 16kHz mono) → transcreve → callback com texto
  * Usa react-native-audio-recorder-player para gravação + whisper.rn para transcrição
  */
 
@@ -70,8 +70,22 @@ export default function VoiceButton({
 
         audioPathRef.current = path;
 
-        // Iniciar gravação em WAV
-        await recorder.startRecorder(path);
+        // Iniciar gravação em WAV 16kHz mono PCM — formato exigido pelo whisper.cpp
+        await recorder.startRecorder(path, {
+          AVSampleRateKey: 16000,
+          AVNumberOfChannelsKey: 1,
+          AVFormatIDKeyIOS: 'lpcm',
+          AVModeIDKeyIOS: 'spokenaudio',
+          AVLinearPCMBitDepthKeyIOS: 16,
+          AvenueAudioFormat: 'lpcm',
+          AVAudioFileTypeKeyIOS: ' wav',
+          AndroidAudioFormat: 'pcm',
+          AndroidAudioSource: 'mic',
+          AndroidAudioEncoding: 'pcm_16bit',
+          AndroidSamplingRate: 16000,
+          AndroidAudioChannels: 1,
+        } as any);
+
         setRecordState('recording');
       } catch (err) {
         console.error('Recording error:', err);
@@ -86,14 +100,18 @@ export default function VoiceButton({
         const recorder = recorderRef.current;
         if (!recorder) throw new Error('Recorder not initialized');
 
-        // Parar gravação
+        // Parar gravação e aguardar completamente
         await recorder.stopRecorder();
+
         const audioPath = audioPathRef.current;
         if (!audioPath) throw new Error('No audio file recorded');
 
-        // Verificar que o arquivo existe
+        // Verificar que o arquivo existe e tem tamanho > 0
         const exists = await RNFS.exists(audioPath);
         if (!exists) throw new Error('Audio file not found after recording');
+
+        const stat = await RNFS.stat(audioPath);
+        if (stat.size < 44) throw new Error('Audio file too small (possibly empty recording)');
 
         // Garantir que o modelo whisper está carregado
         if (!isWhisperLoaded()) {
@@ -110,11 +128,12 @@ export default function VoiceButton({
         }
 
         // Transcrever o arquivo de áudio
+        // cleanPath: remove file:// prefix if present
+
         const { promise } = await transcribeFile(audioPath, {
           language: 'en',
           splitOnWord: true,
           onNewSegments: (result) => {
-            // Feedback parcial — pode ser usado para mostrar texto em tempo real
             console.log('Whisper segment:', result.result);
           },
         });
@@ -190,10 +209,9 @@ const styles = StyleSheet.create({
   },
   errorStyle: {
     backgroundColor: '#2a1a1a',
-    borderColor: '#ff5555',
+    borderColor: '#FF6B6B',
   },
   btnText: {
     fontSize: 18,
-    color: '#999',
   },
 });

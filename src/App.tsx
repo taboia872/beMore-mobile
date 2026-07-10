@@ -1,12 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { StatusBar, TouchableOpacity, StyleSheet, View, Text } from 'react-native';
+import { StatusBar, TouchableOpacity, StyleSheet, View, Text, ActivityIndicator } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import DownloadScreen from './screens/DownloadScreen';
 import ChatScreen from './screens/ChatScreen';
 
 type Screen = 'download' | 'chat';
 
+const FIRST_RUN_KEY = '@bmo/first_run_complete';
+
 export default function App() {
   const [screen, setScreen] = useState<Screen>('download');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     StatusBar.setHidden(true, 'none');
@@ -14,6 +18,37 @@ export default function App() {
       StatusBar.setHidden(false, 'none');
     };
   }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const done = await AsyncStorage.getItem(FIRST_RUN_KEY);
+        if (done === 'true') {
+          setScreen('chat');
+        }
+      } catch {
+        // ignore
+      }
+      setLoading(false);
+    })();
+  }, []);
+
+  const handleEnterChat = async () => {
+    try {
+      await AsyncStorage.setItem(FIRST_RUN_KEY, 'true');
+    } catch {
+      // ignore
+    }
+    setScreen('chat');
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#00E5FF" />
+      </View>
+    );
+  }
 
   return (
     <>
@@ -23,7 +58,7 @@ export default function App() {
           <DownloadScreen />
           <TouchableOpacity
             style={styles.chatBtn}
-            onPress={() => setScreen('chat')}
+            onPress={handleEnterChat}
           >
             <Text style={styles.chatBtnText}>💬 Chat</Text>
           </TouchableOpacity>
@@ -36,6 +71,12 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
+  loading: {
+    flex: 1,
+    backgroundColor: '#08080c',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   chatBtn: {
     position: 'absolute',
     bottom: 16,

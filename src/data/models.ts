@@ -8,7 +8,7 @@ export const MODELS: ModelInfo[] = [
     size: '~600 MB',
     sizeMB: 600,
     type: 'text',
-    url: 'https://huggingface.co/unsloth/Qwen3.5-0.8B-MTP-GGUF/resolve/main/Qwen3.5-0.8B-UD-Q5_K_XL.gguf',
+    url: 'https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolve/main/Qwen3.5-0.8B-UD-Q5_K_XL.gguf',
     filename: 'Qwen3.5-0.8B-UD-Q5_K_XL.gguf',
   },
   {

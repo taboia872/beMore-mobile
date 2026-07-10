@@ -9,7 +9,7 @@ let activeModelId: string | null = null;
 const STOP_WORDS = [
   '</s>', '<|end|>', '<|eot_id|>', '<|end_of_text|>',
   '<|im_end|>', '<|EOT|>', '<|END_OF_TURN_TOKEN|>',
-  '<|end_of_turn|>',
+  '<|end_of_turn|>', '<end_of_turn>',
 ];
 
 export function getModelsDir(): string {
@@ -122,6 +122,7 @@ export async function chatCompletion(
       top_p: 0.95,
       stop: STOP_WORDS,
       emit_partial_completion: true,
+      enable_thinking: false,
     },
     (data) => {
       if (signal?.cancelled) return;
