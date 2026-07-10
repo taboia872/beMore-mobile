@@ -16,3 +16,4 @@ android/local.properties
 
 .vscode/
 .idea/
+*.bak

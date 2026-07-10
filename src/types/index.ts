@@ -18,6 +18,21 @@ export interface DownloadProgress {
   status: DownloadStatus;
   received: number;
   total: number;
-  speed: number; // bytes/sec
+  speed: number;
   error?: string;
 }
+
+// ===== Chat Types =====
+
+export type ChatRole = 'system' | 'user' | 'assistant';
+
+export interface ChatMessage {
+  id: string;
+  role: ChatRole;
+  content: string;
+  timestamp: number;
+  isStreaming?: boolean;
+  isError?: boolean;
+}
+
+export type LlamaStatus = 'idle' | 'loading' | 'ready' | 'generating' | 'error';
