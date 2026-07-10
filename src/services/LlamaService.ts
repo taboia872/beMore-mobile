@@ -12,6 +12,11 @@ const STOP_WORDS = [
   '<|end_of_turn|>', '<end_of_turn>',
 ];
 
+// System prompt embutido — não enviado como mensagem separada para evitar
+// erros de validação de alternância em modelos com chat templates estritos
+// (ex: Gemma 3 que exige user/assistant/user/assistant começando com user)
+const SYSTEM_PROMPT = 'You are BMO, a helpful AI assistant running fully on-device. Be concise and friendly. Respond in the same language as the user.';
+
 export function getModelsDir(): string {
   return `${RNFS.DocumentDirectoryPath}/models`;
 }
@@ -97,6 +102,61 @@ export interface CompletionResult {
   };
 }
 
+/**
+ * Normaliza a sequência de mensagens para garantir alternância estrita
+ * user/assistant/user/assistant começando com user.
+ *
+ * Regras:
+ * 1. Filtra mensagens de erro e vazias
+ * 2. Remove mensagens system (system prompt é merged na primeira user)
+ * 3. Garante que a sequência começa com user
+ * 4. Garante alternância user/assistant
+ * 5. Merge do system prompt dentro da primeira user message
+ */
+function normalizeMessages(messages: ChatMessage[]): { role: 'user' | 'assistant'; content: string }[] {
+  // Filtra erros, vazios e system
+  const filtered = messages
+    .filter((m) => !m.isError && m.content.trim().length > 0)
+    .filter((m) => m.role !== 'system')
+    .map((m) => ({
+      role: m.role as 'user' | 'assistant',
+      content: m.content,
+    }));
+
+  if (filtered.length === 0) {
+    return [{ role: 'user', content: `[System: ${SYSTEM_PROMPT}]\n\nHello` }];
+  }
+
+  // Se começa com assistant, adiciona user placeholder antes
+  // (acontece quando há greeting do BMO sem conversa prévia)
+  if (filtered[0].role === 'assistant') {
+    filtered.unshift({ role: 'user', content: `[System: ${SYSTEM_PROMPT}]\n\nHi` });
+    return filtered;
+  }
+
+  // Garante alternância: remove mensagens consecutivas do mesmo role
+  // mantendo apenas a última de cada bloco consecutivo
+  const normalized: { role: 'user' | 'assistant'; content: string }[] = [];
+  let lastRole: string | null = null;
+  for (const msg of filtered) {
+    if (msg.role === lastRole) {
+      // Mesmo role consecutivo — skip (merge com anterior)
+      const prev = normalized[normalized.length - 1];
+      prev.content = prev.content + '\n' + msg.content;
+    } else {
+      normalized.push({ ...msg });
+      lastRole = msg.role;
+    }
+  }
+
+  // Merge do system prompt na primeira user message
+  if (normalized[0].role === 'user') {
+    normalized[0].content = `[System: ${SYSTEM_PROMPT}]\n\n${normalized[0].content}`;
+  }
+
+  return normalized;
+}
+
 export async function chatCompletion(
   messages: ChatMessage[],
   onToken: (token: string, accumulated: string) => void,
@@ -104,12 +164,7 @@ export async function chatCompletion(
 ): Promise<CompletionResult> {
   if (!activeContext) throw new Error('Model not loaded. Call loadModel() first.');
 
-  const apiMessages = messages
-    .filter((m) => !m.isError && m.content.trim().length > 0)
-    .map((m) => ({
-      role: m.role,
-      content: m.content,
-    }));
+  const apiMessages = normalizeMessages(messages);
 
   let accumulatedText = '';
 

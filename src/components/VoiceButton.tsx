@@ -1,7 +1,10 @@
 /**
  * VoiceButton — Botão de microfone para STT
- * Fluxo: tap → pede permissão → grava áudio (WAV 16kHz mono) → transcreve → callback com texto
+ * Fluxo: tap → pede permissão → grava áudio (m4a/AAC no Android) → transcreve → callback com texto
  * Usa react-native-audio-recorder-player para gravação + whisper.rn para transcrição
+ *
+ * Nota: No Android, MediaRecorder grava AAC/M4A nativamente (não WAV/PCM).
+ * whisper.cpp suporta AAC via miniaudio, então usamos .m4a com OutputFormat MPEG_4.
  */
 
 import React, { useState, useCallback, useRef } from 'react';
@@ -62,7 +65,8 @@ export default function VoiceButton({
         const recorder = recorderRef.current;
 
         // Caminho do arquivo de áudio temporário
-        const path = `${RNFS.DocumentDirectoryPath}/voice_record.wav`;
+        // .m4a porque o MediaRecorder no Android grava AAC/M4A nativamente
+        const path = `${RNFS.DocumentDirectoryPath}/voice_record.m4a`;
 
         // Remove arquivo anterior se existir
         const exists = await RNFS.exists(path);
@@ -70,7 +74,8 @@ export default function VoiceButton({
 
         audioPathRef.current = path;
 
-        // Iniciar gravação em WAV 16kHz mono PCM — formato exigido pelo whisper.cpp
+        // Gravar em AAC/M4A — formato nativo do MediaRecorder no Android
+        // whisper.cpp suporta AAC via miniaudio
         await recorder.startRecorder(path, {
           AVSampleRateKey: 16000,
           AVNumberOfChannelsKey: 1,
@@ -79,11 +84,6 @@ export default function VoiceButton({
           AVLinearPCMBitDepthKeyIOS: 16,
           AvenueAudioFormat: 'lpcm',
           AVAudioFileTypeKeyIOS: ' wav',
-          AndroidAudioFormat: 'pcm',
-          AndroidAudioSource: 'mic',
-          AndroidAudioEncoding: 'pcm_16bit',
-          AndroidSamplingRate: 16000,
-          AndroidAudioChannels: 1,
         } as any);
 
         setRecordState('recording');
@@ -128,10 +128,9 @@ export default function VoiceButton({
         }
 
         // Transcrever o arquivo de áudio
-        // cleanPath: remove file:// prefix if present
-
+        // language: 'auto' — detecta o idioma automaticamente (usuário fala português)
         const { promise } = await transcribeFile(audioPath, {
-          language: 'en',
+          language: 'auto',
           splitOnWord: true,
           onNewSegments: (result) => {
             console.log('Whisper segment:', result.result);

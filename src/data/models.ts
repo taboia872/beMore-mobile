@@ -2,14 +2,14 @@ import { ModelInfo } from '../types';
 
 export const MODELS: ModelInfo[] = [
   {
-    id: 'qwen35-08b',
-    name: 'Qwen3.5 0.8B',
-    description: 'Modelo de texto leve. Rápido e eficiente para tarefas gerais.',
-    size: '~600 MB',
-    sizeMB: 600,
+    id: 'qwen25-15b',
+    name: 'Qwen2.5 1.5B',
+    description: 'Modelo de texto robusto. Boa qualidade para tarefas gerais.',
+    size: '~1.1 GB',
+    sizeMB: 1100,
     type: 'text',
-    url: 'https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolve/main/Qwen3.5-0.8B-UD-Q5_K_XL.gguf',
-    filename: 'Qwen3.5-0.8B-UD-Q5_K_XL.gguf',
+    url: 'https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf',
+    filename: 'qwen2.5-1.5b-instruct-q4_k_m.gguf',
   },
   {
     id: 'gemma3-1b',
@@ -81,15 +81,5 @@ export const MODELS: ModelInfo[] = [
     type: 'whisper',
     url: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin',
     filename: 'ggml-tiny.bin',
-  },
-  {
-    id: 'whisper-base-en',
-    name: 'Whisper Base (EN)',
-    description: 'Inglês com melhor precisão que tiny. Um pouco mais lento.',
-    size: '~140 MB',
-    sizeMB: 140,
-    type: 'whisper',
-    url: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin',
-    filename: 'ggml-base.en.bin',
   },
 ];
