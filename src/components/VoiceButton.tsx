@@ -3,8 +3,7 @@
  * Fluxo: tap → pede permissão → grava áudio (m4a/AAC no Android) → transcreve → callback com texto
  * Usa react-native-audio-recorder-player para gravação + whisper.rn para transcrição
  *
- * Nota: No Android, MediaRecorder grava AAC/M4A nativamente (não WAV/PCM).
- * whisper.cpp suporta AAC via miniaudio, então usamos .m4a com OutputFormat MPEG_4.
+ * Em caso de erro, o log completo é enviado via onTranscription para aparecer no chat.
  */
 
 import React, { useState, useCallback, useRef } from 'react';
@@ -27,6 +26,7 @@ import {
   requestRecordAudioPermission,
 } from '../services/WhisperService';
 import { WHISPER_MODELS } from '../data/whisperModels';
+import { toggleNativeLog, addNativeLogListener } from 'whisper.rn';
 
 type RecordState = 'idle' | 'recording' | 'transcribing' | 'error';
 
@@ -46,6 +46,13 @@ export default function VoiceButton({
   const [recordState, setRecordState] = useState<RecordState>('idle');
   const recorderRef = useRef<AudioRecorderPlayer | null>(null);
   const audioPathRef = useRef<string | null>(null);
+  const nativeLogRef = useRef<string[]>([]);
+  const logListenerRef = useRef<{ remove: () => void } | null>(null);
+
+  const sendLog = useCallback((msg: string) => {
+    console.log('[VoiceButton]', msg);
+    onTranscription(`[STT DEBUG] ${msg}`);
+  }, [onTranscription]);
 
   const handlePress = useCallback(async () => {
     if (disabled) return;
@@ -54,6 +61,7 @@ export default function VoiceButton({
       // ===== Iniciar gravação =====
       const hasPermission = await requestRecordAudioPermission();
       if (!hasPermission) {
+        sendLog('Permissão de microfone negada');
         Alert.alert('Permission Denied', 'Microphone permission is required for voice input.');
         return;
       }
@@ -64,18 +72,13 @@ export default function VoiceButton({
         }
         const recorder = recorderRef.current;
 
-        // Caminho do arquivo de áudio temporário
-        // .m4a porque o MediaRecorder no Android grava AAC/M4A nativamente
         const path = `${RNFS.DocumentDirectoryPath}/voice_record.m4a`;
 
-        // Remove arquivo anterior se existir
         const exists = await RNFS.exists(path);
         if (exists) await RNFS.unlink(path);
 
         audioPathRef.current = path;
 
-        // Gravar em AAC/M4A — formato nativo do MediaRecorder no Android
-        // whisper.cpp suporta AAC via miniaudio
         await recorder.startRecorder(path, {
           AVSampleRateKey: 16000,
           AVNumberOfChannelsKey: 1,
@@ -87,48 +90,64 @@ export default function VoiceButton({
         } as any);
 
         setRecordState('recording');
+        sendLog(`Gravação iniciada → ${path}`);
       } catch (err) {
         console.error('Recording error:', err);
         setRecordState('error');
-        Alert.alert('Recording Error', err instanceof Error ? err.message : 'Failed to start recording.');
+        sendLog(`ERRO gravação: ${err instanceof Error ? err.message : String(err)}`);
       }
     } else if (recordState === 'recording') {
       // ===== Parar gravação e transcrever =====
       setRecordState('transcribing');
+      nativeLogRef.current = [];
+
+      // Ativar log nativo do whisper.cpp
+      try {
+        if (logListenerRef.current) {
+          logListenerRef.current.remove();
+        }
+        logListenerRef.current = addNativeLogListener((level, text) => {
+          nativeLogRef.current.push(`[${level}] ${text}`);
+        });
+        await toggleNativeLog(true);
+      } catch (e) {
+        sendLog(`toggleNativeLog falhou: ${e}`);
+      }
 
       try {
         const recorder = recorderRef.current;
         if (!recorder) throw new Error('Recorder not initialized');
 
-        // Parar gravação e aguardar completamente
+        // Parar gravação
         await recorder.stopRecorder();
 
         const audioPath = audioPathRef.current;
         if (!audioPath) throw new Error('No audio file recorded');
 
-        // Verificar que o arquivo existe e tem tamanho > 0
+        // Verificar arquivo
         const exists = await RNFS.exists(audioPath);
         if (!exists) throw new Error('Audio file not found after recording');
 
         const stat = await RNFS.stat(audioPath);
-        if (stat.size < 44) throw new Error('Audio file too small (possibly empty recording)');
+        if (stat.size < 44) throw new Error(`Audio file too small (${stat.size} bytes)`);
 
-        // Garantir que o modelo whisper está carregado
+        // Carregar modelo whisper
         if (!isWhisperLoaded()) {
           const downloaded = await isWhisperModelDownloaded(whisperModelId);
           if (!downloaded) {
-            Alert.alert(
-              'Whisper Model Not Found',
-              'Please download a Whisper model from the Download screen first.',
-            );
+            sendLog(`Modelo whisper não baixado: ${whisperModelId}`);
+            Alert.alert('Whisper Model Not Found', 'Please download a Whisper model from the Download screen first.');
             setRecordState('idle');
             return;
           }
+          sendLog(`Carregando modelo whisper: ${whisperModelId}...`);
           await loadWhisperModel(whisperModelId);
+          sendLog('Modelo whisper carregado');
         }
 
-        // Transcrever o arquivo de áudio
-        // language: 'auto' — detecta o idioma automaticamente (usuário fala português)
+        // Transcrever
+        sendLog(`Transcrevendo: ${audioPath} (${stat.size} bytes)`);
+
         const { promise } = await transcribeFile(audioPath, {
           language: 'auto',
           splitOnWord: true,
@@ -139,16 +158,37 @@ export default function VoiceButton({
 
         const result = await promise;
         const text = result.result?.trim();
-        if (text) {
+
+        // Log detalhado do resultado
+        sendLog(
+          `Resultado: "${text || '(vazio)'}" | segments: ${result.segments?.length || 0} | aborted: ${result.isAborted} | processTime: ${result.processTime}ms`
+        );
+
+        if (text && text.length > 0) {
           onTranscription(text);
         }
 
         setRecordState('idle');
         audioPathRef.current = null;
 
-        // Limpar arquivo temporário
         RNFS.unlink(audioPath).catch(() => {});
+
+        // Desativar log nativo
+        try {
+          await toggleNativeLog(false);
+          if (logListenerRef.current) {
+            logListenerRef.current.remove();
+            logListenerRef.current = null;
+          }
+        } catch {}
       } catch (err) {
+        const errStr = err instanceof Error ? err.message : String(err);
+        const nativeLog = nativeLogRef.current.length > 0
+          ? `\n\n--- whisper.cpp native log ---\n${nativeLogRef.current.join('\n')}`
+          : '';
+
+        sendLog(`ERRO transcrição: ${errStr}${nativeLog}`);
+
         console.error('Transcription error:', err);
         setRecordState('error');
         Alert.alert(
@@ -156,9 +196,18 @@ export default function VoiceButton({
           err instanceof Error ? err.message : 'Failed to transcribe audio.',
         );
         setRecordState('idle');
+
+        // Desativar log nativo
+        try {
+          await toggleNativeLog(false);
+          if (logListenerRef.current) {
+            logListenerRef.current.remove();
+            logListenerRef.current = null;
+          }
+        } catch {}
       }
     }
-  }, [disabled, recordState, onTranscription, whisperModelId]);
+  }, [disabled, recordState, onTranscription, whisperModelId, sendLog]);
 
   const getButtonStyle = () => {
     switch (recordState) {

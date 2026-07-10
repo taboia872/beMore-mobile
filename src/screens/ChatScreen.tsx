@@ -187,8 +187,20 @@ export default function ChatScreen({ onBack }: ChatScreenProps) {
   }, [onBack]);
 
   const handleVoiceTranscription = useCallback((text: string) => {
+    // Logs de debug do STT aparecem como mensagem do bot no chat
+    if (text.startsWith('[STT DEBUG]')) {
+      const debugMsg: ChatMessage = {
+        id: makeId(),
+        role: 'assistant',
+        content: text,
+        timestamp: Date.now(),
+      };
+      setMessages((prev) => [...prev, debugMsg]);
+      scrollToBottom();
+      return;
+    }
     setInput(text);
-  }, []);
+  }, [scrollToBottom]);
 
   const canSend = status === 'ready' && input.trim().length > 0;
 
