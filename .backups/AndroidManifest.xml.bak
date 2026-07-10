@@ -10,7 +10,7 @@
     <!-- Permissões de câmera (visão) -->
     <uses-permission android:name="android.permission.CAMERA" />
 
-    <!-- Foreground Service (Wake Word em background) -->
+    <!-- Foreground Service (Wake Word em背景) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
@@ -37,7 +37,7 @@
         android:launchMode="singleTask"
         android:windowSoftInputMode="adjustResize"
         android:exported="true"
-        android:resizeableActivity="true"
+        android:screenOrientation="landscape"
         android:theme="@style/FullScreenTheme">
         <intent-filter>
             <action android:name="android.intent.action.MAIN" />
