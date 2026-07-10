@@ -44,9 +44,9 @@ export default function ModelCard({
       <View style={styles.header}>
         <View style={styles.titleRow}>
           <Text style={styles.title}>{model.name}</Text>
-          <View style={[styles.badge, model.type === 'vision' ? styles.badgeVision : styles.badgeTextBg]}>
+          <View style={[styles.badge, model.type === 'vision' ? styles.badgeVision : model.type === 'whisper' ? styles.badgeWhisper : styles.badgeTextBg]}>
             <Text style={styles.badgeLabel}>
-              {model.type === 'vision' ? '👁 VISÃO' : '📝 TEXTO'}
+              {model.type === 'vision' ? '👁 VISÃO' : model.type === 'whisper' ? '🎙 STT' : '📝 TEXTO'}
             </Text>
           </View>
         </View>
@@ -138,6 +138,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#1a2a4a',
   },
   badgeVision: {
+  badgeWhisper: {
+    backgroundColor: "#2a4a1a",
+  },
     backgroundColor: '#4a1a2a',
   },
   badgeLabel: {

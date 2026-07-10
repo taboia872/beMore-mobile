@@ -72,12 +72,8 @@ export default function DownloadScreen() {
           downloadedSize: model.sizeMB * 1024 * 1024,
         });
       } else if (status === 'error') {
-        updateState(model.id, { status: 'error', progress: 0, speed: 0 });
-      } else if (status === 'idle') {
-        updateState(model.id, { status: 'idle', progress: 0, speed: 0 });
+        updateState(model.id, { status: 'error', speed: 0 });
       }
-    }).catch(() => {
-      // Erro já tratado no callback
     });
   };
 
@@ -105,6 +101,7 @@ export default function DownloadScreen() {
 
   const textModels = MODELS.filter((m) => m.type === 'text');
   const visionModels = MODELS.filter((m) => m.type === 'vision');
+  const whisperModels = MODELS.filter((m) => m.type === 'whisper');
 
   const renderCard = (model: ModelInfo) => {
     const s = states[model.id] || INITIAL_STATE;
@@ -133,7 +130,7 @@ export default function DownloadScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.appTitle}>BMO</Text>
-        <Text style={styles.appSubtitle}>Be More Agent — Fase 1</Text>
+        <Text style={styles.appSubtitle}>Be More Agent — Fase 1+3</Text>
         <Text style={styles.appHint}>Baixe modelos locais para rodar offline</Text>
       </View>
 
@@ -141,6 +138,12 @@ export default function DownloadScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>MODELOS DE TEXTO</Text>
         {textModels.map(renderCard)}
+      </View>
+
+      {/* Whisper STT Models */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>RECONHECIMENTO DE VOZ (STT)</Text>
+        {whisperModels.map(renderCard)}
       </View>
 
       {/* Vision Models */}
@@ -152,7 +155,7 @@ export default function DownloadScreen() {
       {/* Footer */}
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          Arquivos GGUF salvos no armazenamento interno.
+          Arquivos GGUF/BIN salvos no armazenamento interno.
           {'\n'}Fonte: HuggingFace · Offline após download
         </Text>
       </View>

@@ -4,7 +4,7 @@ const defaultConfig = getDefaultConfig(__dirname);
 
 const customConfig = {
   resolver: {
-    assetExts: [...defaultConfig.resolver.assetExts, 'gguf', 'onnx'],
+    assetExts: [...defaultConfig.resolver.assetExts, 'gguf', 'onnx', 'bin'],
   },
 };
 

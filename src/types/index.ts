@@ -1,4 +1,4 @@
-export type ModelType = 'text' | 'vision';
+export type ModelType = 'text' | 'vision' | 'whisper';
 
 export interface ModelInfo {
   id: string;
@@ -36,3 +36,31 @@ export interface ChatMessage {
 }
 
 export type LlamaStatus = 'idle' | 'loading' | 'ready' | 'generating' | 'error';
+
+// ===== Whisper STT Types =====
+
+export interface WhisperModelInfo {
+  id: string;
+  name: string;
+  description: string;
+  size: string;
+  sizeMB: number;
+  language: string;
+  url: string;
+  filename: string;
+}
+
+export type WhisperStatus = 'idle' | 'loading' | 'ready' | 'transcribing' | 'error';
+
+export interface WhisperSegment {
+  t0: number;
+  t1: number;
+  text: string;
+}
+
+export interface WhisperTranscribeResult {
+  result: string;
+  segments: WhisperSegment[];
+  isAborted: boolean;
+  processTime: number;
+}

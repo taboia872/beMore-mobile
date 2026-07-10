@@ -9,6 +9,7 @@ import {
 } from '../services/LlamaService';
 import ChatBubble from '../components/ChatBubble';
 import ModelSelector from '../components/ModelSelector';
+import VoiceButton from '../components/VoiceButton';
 
 interface ChatScreenProps {
   onBack: () => void;
@@ -147,7 +148,7 @@ export default function ChatScreen({ onBack }: ChatScreenProps) {
         if (last && last.role === 'assistant') {
           updated[updated.length - 1] = {
             ...last,
-            content: `⚠ Error: ${errMsg}`,
+            content: `Error: ${errMsg}`,
             isStreaming: false,
             isError: true,
           };
@@ -185,6 +186,10 @@ export default function ChatScreen({ onBack }: ChatScreenProps) {
     onBack();
   }, [onBack]);
 
+  const handleVoiceTranscription = useCallback((text: string) => {
+    setInput(text);
+  }, []);
+
   const canSend = status === 'ready' && input.trim().length > 0;
 
   return (
@@ -203,7 +208,7 @@ export default function ChatScreen({ onBack }: ChatScreenProps) {
           onPress={() => setModelSelectorVisible(true)}
         >
           <Text style={styles.modelBadgeText}>
-            {activeModelName ? `● ${activeModelName}` : 'Select Model'}
+            {activeModelName ? `${activeModelName}` : 'Select Model'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -219,7 +224,7 @@ export default function ChatScreen({ onBack }: ChatScreenProps) {
       )}
       {error && (
         <View style={styles.errorBar}>
-          <Text style={styles.errorText}>⚠ {error}</Text>
+          <Text style={styles.errorText}>{error}</Text>
         </View>
       )}
 
@@ -251,6 +256,10 @@ export default function ChatScreen({ onBack }: ChatScreenProps) {
 
       {/* Input Bar */}
       <View style={styles.inputBar}>
+        <VoiceButton
+          onTranscription={handleVoiceTranscription}
+          disabled={status !== 'ready'}
+        />
         <TextInput
           style={styles.input}
           value={input}
@@ -430,7 +439,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   stopBtnText: {
-    color: '#ff5555',
-    fontSize: 18,
+    color: '#FF6B6B',
+    fontSize: 14,
   },
 });
