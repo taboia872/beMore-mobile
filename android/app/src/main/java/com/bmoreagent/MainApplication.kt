@@ -18,8 +18,8 @@ class MainApplication : Application(), ReactApplication {
       object : DefaultReactNativeHost(this) {
         override fun getPackages(): List<ReactPackage> =
             PackageList(this).packages.apply {
-              // Packages que não são autolinked podem ser adicionados aqui
-              // add(PiperTTSReactPackage())  // Fase 5
+              // Native modules customizados
+              add(PcmRecorderPackage())
             }
 
         override fun getJSMainModuleName(): String = "index"

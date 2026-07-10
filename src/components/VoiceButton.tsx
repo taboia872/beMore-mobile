@@ -1,7 +1,10 @@
 /**
  * VoiceButton — Botão de microfone para STT
- * Fluxo: tap → pede permissão → grava áudio (m4a/AAC no Android) → transcreve → callback com texto
- * Usa react-native-audio-recorder-player para gravação + whisper.rn para transcrição
+ * Fluxo: tap → pede permissão → grava áudio (PCM/WAV via AudioRecord nativo) → transcreve → callback com texto
+ * Usa PcmRecorder (NativeModule customizado) para gravação + whisper.rn para transcrição
+ *
+ * Opção C implementada no Build #138: AudioRecord nativo (PCM 16-bit 16kHz mono) → WAV
+ * ao invés de MediaRecorder (AAC/M4A) que whisper.cpp não decodifica sem ffmpeg.
  *
  * Em caso de erro, o log completo é enviado via onTranscription para aparecer no chat.
  */
@@ -14,8 +17,8 @@ import {
   ActivityIndicator,
   Alert,
   View,
+  NativeModules,
 } from 'react-native';
-import AudioRecorderPlayer from 'react-native-audio-recorder-player';
 import RNFS from 'react-native-fs';
 import {
   loadWhisperModel,
@@ -25,8 +28,10 @@ import {
   isWhisperModelDownloaded,
   requestRecordAudioPermission,
 } from '../services/WhisperService';
-import { WHISPER_MODELS } from '../data/whisperModels';
 import { toggleNativeLog, addNativeLogListener } from 'whisper.rn';
+
+// NativeModule customizado para gravação PCM/WAV
+const { PcmRecorder } = NativeModules;
 
 type RecordState = 'idle' | 'recording' | 'transcribing' | 'error';
 
@@ -44,7 +49,6 @@ export default function VoiceButton({
   whisperModelId = DEFAULT_WHISPER_MODEL,
 }: VoiceButtonProps) {
   const [recordState, setRecordState] = useState<RecordState>('idle');
-  const recorderRef = useRef<AudioRecorderPlayer | null>(null);
   const audioPathRef = useRef<string | null>(null);
   const nativeLogRef = useRef<string[]>([]);
   const logListenerRef = useRef<{ remove: () => void } | null>(null);
@@ -67,30 +71,19 @@ export default function VoiceButton({
       }
 
       try {
-        if (!recorderRef.current) {
-          recorderRef.current = new AudioRecorderPlayer();
-        }
-        const recorder = recorderRef.current;
-
-        const path = `${RNFS.DocumentDirectoryPath}/voice_record.m4a`;
+        // PCM WAV — whisper.cpp decodifica nativamente
+        const path = `${RNFS.DocumentDirectoryPath}/voice_record.wav`;
 
         const exists = await RNFS.exists(path);
         if (exists) await RNFS.unlink(path);
 
         audioPathRef.current = path;
 
-        await recorder.startRecorder(path, {
-          AVSampleRateKey: 16000,
-          AVNumberOfChannelsKey: 1,
-          AVFormatIDKeyIOS: 'lpcm',
-          AVModeIDKeyIOS: 'spokenaudio',
-          AVLinearPCMBitDepthKeyIOS: 16,
-          AvenueAudioFormat: 'lpcm',
-          AVAudioFileTypeKeyIOS: ' wav',
-        } as any);
+        // Gravação via PcmRecorder (AudioRecord → PCM → WAV)
+        await PcmRecorder.startRecording(path);
 
         setRecordState('recording');
-        sendLog(`Gravação iniciada → ${path}`);
+        sendLog(`Gravação iniciada -> ${path}`);
       } catch (err) {
         console.error('Recording error:', err);
         setRecordState('error');
@@ -115,16 +108,13 @@ export default function VoiceButton({
       }
 
       try {
-        const recorder = recorderRef.current;
-        if (!recorder) throw new Error('Recorder not initialized');
-
-        // Parar gravação
-        await recorder.stopRecorder();
+        // Parar gravação — PcmRecorder finaliza o arquivo .wav
+        await PcmRecorder.stopRecording();
 
         const audioPath = audioPathRef.current;
         if (!audioPath) throw new Error('No audio file recorded');
 
-        // Verificar arquivo
+        // Verificar arquivo WAV
         const exists = await RNFS.exists(audioPath);
         if (!exists) throw new Error('Audio file not found after recording');
 
@@ -228,9 +218,7 @@ export default function VoiceButton({
       {recordState === 'transcribing' ? (
         <ActivityIndicator size="small" color="#00E5FF" />
       ) : (
-        <Text style={styles.btnText}>
-          {recordState === 'recording' ? '⏹' : '🎙'}
-        </Text>
+        <Text style={styles.btnText}>🎤</Text>
       )}
     </TouchableOpacity>
   );
