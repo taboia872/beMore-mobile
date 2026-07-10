@@ -35,6 +35,11 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
+      - name: Patch RNFS - Remove TurboModule spec
+        run: |
+          rm -f node_modules/@dr.pogodin/react-native-fs/src/NativeReactNativeFs.ts
+          echo "Removed NativeReactNativeFs.ts to bypass codegen incompatibility"
+
       - name: Generate local.properties
         run: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
@@ -57,7 +62,8 @@ jobs:
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: bmo-debug-apk
-          path: android/app/build/outputs/apk/debug/*.apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
