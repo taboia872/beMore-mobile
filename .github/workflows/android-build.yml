@@ -35,10 +35,6 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Patch RNFS - Remove TurboModule spec
-        run: |
-          rm -f node_modules/@dr.pogodin/react-native-fs/src/NativeReactNativeFs.ts
-          echo "Removed NativeReactNativeFs.ts to bypass codegen incompatibility"
 
       - name: Generate local.properties
         run: |
