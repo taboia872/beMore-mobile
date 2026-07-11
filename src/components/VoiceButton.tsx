@@ -1,10 +1,11 @@
 /**
  * VoiceButton — Botão de microfone para STT
- * Fluxo: tap → pede permissão → grava PCM/WAV → transcreve → callback com texto
- * Logs de debug vão apenas para console.log (não poluem o chat).
+ * Modo File: tap → grava PCM/WAV → para → transcreve
+ * Modo Realtime: tap inicia captura contínua → tap novamente para
+ *   Texto parcial aparece em tempo real no input do chat
  */
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   StyleSheet,
   TouchableOpacity,
@@ -20,10 +21,13 @@ import {
   unloadWhisperModel,
   transcribeFile,
   isWhisperLoaded,
-  isWhisperModelDownloaded,
   findAnyDownloadedWhisperModel,
   requestRecordAudioPermission,
+  startRealtimeTranscription,
+  stopRealtimeTranscription,
+  isRealtimeActive,
 } from '../services/WhisperService';
+import { getRealtimeSttEnabled } from '../services/SettingsService';
 import { toggleNativeLog, addNativeLogListener } from 'whisper.rn';
 
 const { PcmRecorder } = NativeModules;
@@ -32,23 +36,87 @@ type RecordState = 'idle' | 'recording' | 'transcribing' | 'error';
 
 interface VoiceButtonProps {
   onTranscription: (text: string) => void;
+  /** Partial text update for realtime mode (updates input as user speaks) */
+  onPartialTranscription?: (text: string) => void;
   disabled?: boolean;
 }
 
 export default function VoiceButton({
   onTranscription,
+  onPartialTranscription,
   disabled,
 }: VoiceButtonProps) {
   const [recordState, setRecordState] = useState<RecordState>('idle');
+  const [realtimeMode, setRealtimeMode] = useState(false);
   const audioPathRef = useRef<string | null>(null);
   const nativeLogRef = useRef<string[]>([]);
   const logListenerRef = useRef<{ remove: () => void } | null>(null);
+  const accumulatedTextRef = useRef<string>('');
+
+  // Carrega flag de realtime ao montar
+  useEffect(() => {
+    getRealtimeSttEnabled().then(setRealtimeMode);
+  }, []);
 
   const handlePress = useCallback(async () => {
     if (disabled) return;
 
+    // ===== MODO REALTIME =====
+    if (realtimeMode) {
+      if (recordState === 'idle') {
+        // Iniciar realtime
+        const hasPermission = await requestRecordAudioPermission();
+        if (!hasPermission) {
+          Alert.alert('Permissão negada', 'Microfone necessário para voz.');
+          return;
+        }
+
+        accumulatedTextRef.current = '';
+        setRecordState('recording');
+
+        try {
+          await startRealtimeTranscription({
+            language: 'pt',
+            useVad: true,
+            realtimeAudioSec: 3,
+            onPartial: (text) => {
+              // Texto parcial → atualiza input em tempo real
+              const combined = accumulatedTextRef.current + text;
+              onPartialTranscription?.(combined);
+            },
+            onSegment: (text) => {
+              // Segmento final → acumula
+              accumulatedTextRef.current += text + ' ';
+              onPartialTranscription?.(accumulatedTextRef.current.trim());
+            },
+          });
+        } catch (err) {
+          console.error('[VoiceButton] Realtime error:', err);
+          Alert.alert(
+            'STT Realtime',
+            err instanceof Error ? err.message : 'Falha ao iniciar transcrição em tempo real.',
+          );
+          setRecordState('idle');
+        }
+      } else if (recordState === 'recording') {
+        // Parar realtime
+        setRecordState('transcribing');
+        try {
+          await stopRealtimeTranscription();
+          const finalText = accumulatedTextRef.current.trim();
+          if (finalText.length > 0) {
+            onTranscription(finalText);
+          }
+        } catch (err) {
+          console.error('[VoiceButton] Realtime stop error:', err);
+        }
+        setRecordState('idle');
+      }
+      return;
+    }
+
+    // ===== MODO FILE (atual) =====
     if (recordState === 'idle') {
-      // ===== Iniciar gravação =====
       const hasPermission = await requestRecordAudioPermission();
       if (!hasPermission) {
         console.log('[VoiceButton] Permissão negada');
@@ -70,7 +138,6 @@ export default function VoiceButton({
         setRecordState('error');
       }
     } else if (recordState === 'recording') {
-      // ===== Parar gravação e transcrever =====
       setRecordState('transcribing');
       nativeLogRef.current = [];
 
@@ -98,9 +165,7 @@ export default function VoiceButton({
         const stat = await RNFS.stat(audioPath);
         if (stat.size < 44) throw new Error(`Audio file too small (${stat.size} bytes)`);
 
-        // Carregar modelo whisper (se necessário)
         if (!isWhisperLoaded()) {
-          // Procura qualquer modelo Whisper baixado (não hardcodeia um específico)
           const downloadedId = await findAnyDownloadedWhisperModel();
           if (!downloadedId) {
             Alert.alert(
@@ -170,7 +235,7 @@ export default function VoiceButton({
         } catch {}
       }
     }
-  }, [disabled, recordState, onTranscription]);
+  }, [disabled, recordState, onTranscription, onPartialTranscription, realtimeMode]);
 
   const getButtonStyle = () => {
     switch (recordState) {
@@ -179,6 +244,12 @@ export default function VoiceButton({
       case 'error': return [styles.btn, styles.errorStyle];
       default: return styles.btn;
     }
+  };
+
+  const getButtonIcon = () => {
+    if (recordState === 'transcribing') return null; // ActivityIndicator rendered
+    if (realtimeMode && recordState === 'recording') return '⏹';
+    return '🎤';
   };
 
   return (
@@ -191,7 +262,7 @@ export default function VoiceButton({
       {recordState === 'transcribing' ? (
         <ActivityIndicator size="small" color="#00E5FF" />
       ) : (
-        <Text style={styles.btnText}>🎤</Text>
+        <Text style={styles.btnText}>{getButtonIcon()}</Text>
       )}
     </TouchableOpacity>
   );

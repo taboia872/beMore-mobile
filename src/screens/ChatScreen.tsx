@@ -187,7 +187,6 @@ export default function ChatScreen({ onBack }: ChatScreenProps) {
   }, [onBack]);
 
   const handleVoiceTranscription = useCallback((text: string) => {
-    // Logs de debug do STT aparecem como mensagem do bot no chat
     if (text.startsWith('[STT DEBUG]')) {
       const debugMsg: ChatMessage = {
         id: makeId(),
@@ -201,6 +200,10 @@ export default function ChatScreen({ onBack }: ChatScreenProps) {
     }
     setInput(text);
   }, [scrollToBottom]);
+
+  const handlePartialTranscription = useCallback((text: string) => {
+    setInput(text);
+  }, []);
 
   const canSend = status === 'ready' && input.trim().length > 0;
 
@@ -270,6 +273,7 @@ export default function ChatScreen({ onBack }: ChatScreenProps) {
       <View style={styles.inputBar}>
         <VoiceButton
           onTranscription={handleVoiceTranscription}
+          onPartialTranscription={handlePartialTranscription}
           disabled={status !== 'ready'}
         />
         <TextInput

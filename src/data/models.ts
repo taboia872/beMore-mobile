@@ -4,7 +4,7 @@ export const MODELS: ModelInfo[] = [
   {
     id: 'qwen25-15b',
     name: 'Qwen2.5 1.5B',
-    author: 'Qwen/Qwen2.5-1.5B-Instruct-GGUF',
+    author: 'Qwen/Qwen2.5-1.5B-Instruct-GGUF/qwen2.5-1.5b-instruct-q4_k_m.gguf',
     description: 'Modelo de texto robusto. Boa qualidade para tarefas gerais.',
     size: '~1.1 GB',
     sizeMB: 1100,
@@ -15,7 +15,7 @@ export const MODELS: ModelInfo[] = [
   {
     id: 'gemma3-1b',
     name: 'Gemma 3 1B IT',
-    author: 'unsloth/gemma-3-1b-it-GGUF',
+    author: 'unsloth/gemma-3-1b-it-GGUF/gemma-3-1b-it-UD-Q4_K_XL.gguf',
     description: 'Modelo de texto da Google. Boa relação qualidade/tamanho.',
     size: '~800 MB',
     sizeMB: 800,
@@ -26,7 +26,7 @@ export const MODELS: ModelInfo[] = [
   {
     id: 'lfm25-12b',
     name: 'LFM2.5 1.2B',
-    author: 'unsloth/LFM2.5-1.2B-Instruct-GGUF',
+    author: 'unsloth/LFM2.5-1.2B-Instruct-GGUF/LFM2.5-1.2B-Instruct-UD-Q4_K_XL.gguf',
     description: 'Liquid AI. Arquitetura híbrida, boa para contexto longo.',
     size: '~800 MB',
     sizeMB: 800,
@@ -37,7 +37,7 @@ export const MODELS: ModelInfo[] = [
   {
     id: 'lfm25-230m',
     name: 'LFM2.5 230M',
-    author: 'unsloth/LFM2.5-230M-GGUF',
+    author: 'unsloth/LFM2.5-230M-GGUF/LFM2.5-230M-UD-Q8_K_XL.gguf',
     description: 'Ultra-leve. Ideal para testes rápidos e dispositivos com RAM limitada.',
     size: '~250 MB',
     sizeMB: 250,
@@ -48,7 +48,7 @@ export const MODELS: ModelInfo[] = [
   {
     id: 'minicpm5-1b',
     name: 'MiniCPM5 1B',
-    author: 'openbmb/MiniCPM5-1B-GGUF',
+    author: 'openbmb/MiniCPM5-1B-GGUF/MiniCPM5-1B-Q4_K_M.gguf',
     description: 'Modelo OpenBMB. Foco em raciocínio e eficiência.',
     size: '~700 MB',
     sizeMB: 700,
@@ -59,7 +59,7 @@ export const MODELS: ModelInfo[] = [
   {
     id: 'moondream',
     name: 'Moondream',
-    author: 'salivosa/moondream2-gguf',
+    author: 'salivosa/moondream2-gguf/moondream2-q4_k.gguf',
     description: 'Modelo de visão. Analisa imagens. Baixe sob demanda.',
     size: '~1.7 GB',
     sizeMB: 1700,
@@ -71,7 +71,7 @@ export const MODELS: ModelInfo[] = [
   {
     id: 'whisper-tiny-q5',
     name: 'Whisper Tiny Q5',
-    author: 'ggerganov/whisper.cpp',
+    author: 'ggerganov/whisper.cpp/ggml-tiny-q5_1.bin',
     description: 'Mais leve. Transcrição rápida com qualidade básica. Ideal para testes.',
     size: '~32 MB',
     sizeMB: 32,
@@ -82,7 +82,7 @@ export const MODELS: ModelInfo[] = [
   {
     id: 'whisper-base-q5',
     name: 'Whisper Base Q5',
-    author: 'ggerganov/whisper.cpp',
+    author: 'ggerganov/whisper.cpp/ggml-base-q5_1.bin',
     description: 'Equilíbrio leve entre velocidade e qualidade. Boa para uso geral.',
     size: '~60 MB',
     sizeMB: 60,
@@ -93,7 +93,7 @@ export const MODELS: ModelInfo[] = [
   {
     id: 'whisper-small-q5',
     name: 'Whisper Small Q5',
-    author: 'ggerganov/whisper.cpp',
+    author: 'ggerganov/whisper.cpp/ggml-small-q5_1.bin',
     description: 'Qualidade superior de transcrição. Recomendado para melhor acurácia.',
     size: '~181 MB',
     sizeMB: 181,
