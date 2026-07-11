@@ -24,6 +24,12 @@ function formatBytes(bytes: number): string {
   return `${mb} MB`;
 }
 
+const TYPE_ICON: Record<string, string> = {
+  text: '📝',
+  vision: '👁',
+  whisper: '🎙',
+};
+
 export default function ModelCard({
   model,
   status,
@@ -38,25 +44,26 @@ export default function ModelCard({
   const isError = status === 'error';
   const isDone = status === 'done' || alreadyDownloaded;
 
+  // Extrai tamanho numérico do model.size para o badge superior direito
+  const sizeBadge = model.size.replace('~', '');
+
   return (
     <View style={[styles.card, isDone && styles.cardDone]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.titleRow}>
-          <Text style={styles.title}>{model.name}</Text>
-          <View style={[styles.badge, model.type === 'vision' ? styles.badgeVision : model.type === 'whisper' ? styles.badgeWhisper : styles.badgeTextBg]}>
-            <Text style={styles.badgeLabel}>
-              {model.type === 'vision' ? '👁 VISÃO' : model.type === 'whisper' ? '🎙 STT' : '📝 TEXTO'}
-            </Text>
-          </View>
-        </View>
-        <Text style={styles.size}>{model.size}</Text>
+      {/* === TOPO: tamanho no canto superior direito === */}
+      <View style={styles.topBar}>
+        <Text style={styles.sizeBadge}>{sizeBadge}</Text>
       </View>
 
-      {/* Description */}
+      {/* === Nome do modelo === */}
+      <Text style={styles.modelName} numberOfLines={1}>{model.name}</Text>
+
+      {/* === Filename completo (autor/repo) === */}
+      <Text style={styles.filename} numberOfLines={1}>{model.filename}</Text>
+
+      {/* === Descrição === */}
       <Text style={styles.description}>{model.description}</Text>
 
-      {/* Progress bar */}
+      {/* === Progress bar === */}
       {isDownloading && (
         <View style={styles.progressContainer}>
           <View style={styles.progressBar}>
@@ -68,17 +75,21 @@ export default function ModelCard({
         </View>
       )}
 
-      {/* Error */}
+      {/* === Erro === */}
       {isError && <Text style={styles.errorText}>⚠ Erro no download. Tente novamente.</Text>}
 
-      {/* Action buttons */}
+      {/* === Botões centralizados === */}
       <View style={styles.actions}>
         {isDone ? (
           <>
             <View style={styles.doneBadge}>
               <Text style={styles.doneBadgeText}>✓ Baixado</Text>
             </View>
-            <TouchableOpacity style={styles.deleteBtn} onPress={onDelete}>
+            <TouchableOpacity
+              style={[styles.deleteBtn, !alreadyDownloaded && styles.disabled]}
+              onPress={onDelete}
+              disabled={!alreadyDownloaded}
+            >
               <Text style={styles.deleteBtnText}>Remover</Text>
             </TouchableOpacity>
           </>
@@ -92,6 +103,11 @@ export default function ModelCard({
           </TouchableOpacity>
         )}
       </View>
+
+      {/* === Ícone de tipo no canto inferior direito === */}
+      <View style={styles.typeIconContainer}>
+        <Text style={styles.typeIcon}>{TYPE_ICON[model.type] || '📦'}</Text>
+      </View>
     </View>
   );
 }
@@ -104,57 +120,45 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderWidth: 1,
     borderColor: '#1e1e2e',
+    position: 'relative',
   },
   cardDone: {
     borderColor: '#1a4a2a',
   },
-  header: {
+  // === Topo ===
+  topBar: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 6,
+    justifyContent: 'flex-end',
+    marginBottom: 4,
   },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  sizeBadge: {
+    fontSize: 11,
+    color: '#555',
+    fontFamily: 'monospace',
   },
-  title: {
-    fontSize: 17,
+  // === Nome ===
+  modelName: {
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#E0E0E0',
     fontFamily: 'monospace',
+    marginBottom: 2,
   },
-  size: {
-    fontSize: 13,
-    color: '#666',
-  },
-  badge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  badgeTextBg: {
-    backgroundColor: '#1a2a4a',
-  },
-  badgeVision: {
-  badgeWhisper: {
-    backgroundColor: "#2a4a1a",
-  },
-    backgroundColor: '#4a1a2a',
-  },
-  badgeLabel: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#88aaff',
+  // === Filename ===
+  filename: {
+    fontSize: 11,
+    color: '#444',
     fontFamily: 'monospace',
+    marginBottom: 8,
   },
+  // === Descrição ===
   description: {
     fontSize: 13,
     color: '#888',
     marginBottom: 12,
     lineHeight: 18,
   },
+  // === Progress ===
   progressContainer: {
     marginBottom: 12,
   },
@@ -175,10 +179,12 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontFamily: 'monospace',
   },
+  // === Actions ===
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
+    gap: 10,
   },
   downloadBtn: {
     backgroundColor: '#00E5FF',
@@ -219,10 +225,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
+  disabled: {
+    opacity: 0.3,
+  },
   deleteBtnText: {
     color: '#666',
     fontSize: 12,
   },
+  // === Type icon ===
+  typeIconContainer: {
+    position: 'absolute',
+    bottom: 12,
+    right: 14,
+  },
+  typeIcon: {
+    fontSize: 14,
+    opacity: 0.5,
+  },
+  // === Error ===
   errorText: {
     color: '#ff5555',
     fontSize: 12,

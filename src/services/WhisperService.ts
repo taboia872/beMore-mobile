@@ -5,7 +5,8 @@
  */
 
 import { initWhisper, releaseAllWhisper, type WhisperContext } from 'whisper.rn';
-import RNFS from 'react-native-fs';
+import RNFS from "react-native-fs";
+import { Platform, PermissionsAndroid } from "react-native";
 import { WHISPER_MODELS } from '../data/whisperModels';
 import type { WhisperModelInfo } from '../types';
 
@@ -36,11 +37,45 @@ export async function ensureWhisperModelsDir(): Promise<void> {
   }
 }
 
+/**
+ * Verifica se um modelo Whisper específico foi baixado.
+ */
 export async function isWhisperModelDownloaded(modelId: string): Promise<boolean> {
   const model = WHISPER_MODELS.find((m) => m.id === modelId);
   if (!model) return false;
   const path = getWhisperModelPath(model);
-  return RNFS.exists(path);
+  try {
+    return await RNFS.exists(path);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Escaneia a pasta models/ e retorna o ID do primeiro modelo Whisper baixado.
+ * Prioriza: small > base > tiny (melhor qualidade primeiro).
+ */
+export async function findAnyDownloadedWhisperModel(): Promise<string | null> {
+  const priority = ['whisper-small-q5', 'whisper-base-q5', 'whisper-tiny-q5'];
+  for (const id of priority) {
+    const downloaded = await isWhisperModelDownloaded(id);
+    if (downloaded) return id;
+  }
+  // Fallback: escanear pasta por qualquer ggml-*.bin
+  try {
+    const dir = getWhisperModelsDir();
+    const exists = await RNFS.exists(dir);
+    if (!exists) return null;
+    const files = await RNFS.readDir(dir);
+    const whisperFile = files.find((f) => f.name.startsWith('ggml-') && f.name.endsWith('.bin'));
+    if (whisperFile) {
+      const model = WHISPER_MODELS.find((m) => m.filename === whisperFile.name);
+      if (model) return model.id;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
 }
 
 export async function loadWhisperModel(
@@ -63,7 +98,7 @@ export async function loadWhisperModel(
   try {
     activeContext = await initWhisper({
       filePath: path,
-      useGpu: false,        // Android não tem GPU support no whisper.rn
+      useGpu: false,
       useCoreMLIos: false,
       useFlashAttn: false,
     });
@@ -99,67 +134,26 @@ export interface TranscribeOptions {
   translate?: boolean;
   maxLen?: number;
   splitOnWord?: boolean;
-  temperature?: number;
-  // Callbacks
-  onProgress?: (progress: number) => void;
-  onNewSegments?: (result: TranscribeNewSegmentsResult) => void;
-}
-
-export interface TranscribeNewSegmentsResult {
-  nNew: number;
-  totalNNew: number;
-  result: string;
-  segments: TranscribeSegment[];
-}
-
-export interface TranscribeSegment {
-  t0: number;
-  t1: number;
-  text: string;
-}
-
-export interface TranscribeResult {
-  result: string;
-  segments: TranscribeSegment[];
-  isAborted: boolean;
-  processTime: number;
+  onNewSegments?: (result: any) => void;
 }
 
 export async function transcribeFile(
-  filePath: string,
+  audioPath: string,
   options: TranscribeOptions = {},
-): Promise<{ stop: () => Promise<void>; promise: Promise<TranscribeResult> }> {
-  if (!activeContext) throw new Error('Whisper model not loaded. Call loadWhisperModel() first.');
+): Promise<{ stop: () => void; promise: Promise<{ result: string; segments: any[]; isAborted: boolean; processTime: number }> }> {
+  if (!activeContext) throw new Error('No whisper model loaded');
 
-  // strip file:// prefix if present
-  const cleanPath = filePath.startsWith('file://') ? filePath.slice(7) : filePath;
-
-  const { stop, promise } = activeContext.transcribe(cleanPath, {
-    language: options.language || 'en',
+  return activeContext.transcribe(audioPath, {
+    language: options.language || 'auto',
     translate: options.translate || false,
-    maxLen: options.maxLen || 0,
-    splitOnWord: options.splitOnWord ?? true,
-    temperature: options.temperature ?? 0,
-    onProgress: options.onProgress,
-    onNewSegments: options.onNewSegments as any,
+    maxLen: options.maxLen || 1,
+    splitOnWord: options.splitOnWord || false,
+    onNewSegments: options.onNewSegments,
   });
-
-  return {
-    stop,
-    promise: promise as Promise<TranscribeResult>,
-  };
 }
 
-export async function stopTranscription(): Promise<void> {
-  // transcribeFile retorna stop() individualmente
-  // Para parar, use o stop retornando por transcribeFile
-  // Esta função é um placeholder para parar qualquer transcrição ativa
-  // (pode ser expandido com tracking de jobId no futuro)
-}
+// ===== Permissions =====
 
-// ===== Permission helper =====
-
-import { Platform, PermissionsAndroid } from 'react-native';
 
 export async function requestRecordAudioPermission(): Promise<boolean> {
   if (Platform.OS !== 'android') return true;

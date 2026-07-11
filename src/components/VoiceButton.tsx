@@ -21,6 +21,7 @@ import {
   transcribeFile,
   isWhisperLoaded,
   isWhisperModelDownloaded,
+  findAnyDownloadedWhisperModel,
   requestRecordAudioPermission,
 } from '../services/WhisperService';
 import { toggleNativeLog, addNativeLogListener } from 'whisper.rn';
@@ -32,15 +33,11 @@ type RecordState = 'idle' | 'recording' | 'transcribing' | 'error';
 interface VoiceButtonProps {
   onTranscription: (text: string) => void;
   disabled?: boolean;
-  whisperModelId?: string;
 }
-
-const DEFAULT_WHISPER_MODEL = 'whisper-base-q5';
 
 export default function VoiceButton({
   onTranscription,
   disabled,
-  whisperModelId = DEFAULT_WHISPER_MODEL,
 }: VoiceButtonProps) {
   const [recordState, setRecordState] = useState<RecordState>('idle');
   const audioPathRef = useRef<string | null>(null);
@@ -103,14 +100,18 @@ export default function VoiceButton({
 
         // Carregar modelo whisper (se necessário)
         if (!isWhisperLoaded()) {
-          const downloaded = await isWhisperModelDownloaded(whisperModelId);
-          if (!downloaded) {
-            Alert.alert('Whisper Model Not Found', 'Please download a Whisper model from the Download screen first.');
+          // Procura qualquer modelo Whisper baixado (não hardcodeia um específico)
+          const downloadedId = await findAnyDownloadedWhisperModel();
+          if (!downloadedId) {
+            Alert.alert(
+              'Modelo STT não encontrado',
+              'Baixe um modelo Whisper na tela de Downloads primeiro.',
+            );
             setRecordState('idle');
             return;
           }
-          console.log('[VoiceButton] Carregando modelo whisper:', whisperModelId);
-          await loadWhisperModel(whisperModelId);
+          console.log('[VoiceButton] Carregando modelo whisper:', downloadedId);
+          await loadWhisperModel(downloadedId);
           console.log('[VoiceButton] Modelo carregado');
         }
 
@@ -169,7 +170,7 @@ export default function VoiceButton({
         } catch {}
       }
     }
-  }, [disabled, recordState, onTranscription, whisperModelId]);
+  }, [disabled, recordState, onTranscription]);
 
   const getButtonStyle = () => {
     switch (recordState) {
@@ -202,24 +203,19 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     backgroundColor: '#1a1a2e',
-    justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#2a2a3e',
+    justifyContent: 'center',
   },
   recording: {
-    backgroundColor: '#2a1a1a',
-    borderColor: '#FF6B6B',
+    backgroundColor: '#ff4444',
   },
   transcribing: {
     backgroundColor: '#1a1a2e',
-    borderColor: '#00E5FF',
   },
   errorStyle: {
     backgroundColor: '#2a1a1a',
-    borderColor: '#FF6B6B',
   },
   btnText: {
-    fontSize: 18,
+    fontSize: 20,
   },
 });
