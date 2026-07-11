@@ -97,35 +97,20 @@ export interface CompletionResult {
   text: string;
   timings?: {
     predicted_per_second: number;
-    predicted_n: number;
-    prompt_n: number;
+    predicted_n?: number;
+    prompt_n?: number;
   };
 }
 
-/**
- * Normaliza a sequência de mensagens para garantir alternância estrita
- * user/assistant/user/assistant começando com user.
- *
- * Regras:
- * 1. Filtra mensagens de erro e vazias
- * 2. Remove mensagens system (system prompt é merged na primeira user)
- * 3. Garante que a sequência começa com user
- * 4. Garante alternância user/assistant
- * 5. Merge do system prompt dentro da primeira user message
- */
-function normalizeMessages(messages: ChatMessage[]): { role: 'user' | 'assistant'; content: string }[] {
-  // Filtra erros, vazios e system
-  const filtered = messages
-    .filter((m) => !m.isError && m.content.trim().length > 0)
-    .filter((m) => m.role !== 'system')
-    .map((m) => ({
-      role: m.role as 'user' | 'assistant',
-      content: m.content,
-    }));
+function normalizeMessages(
+  messages: ChatMessage[],
+): { role: 'user' | 'assistant'; content: string }[] {
+  let filtered = messages
+    .filter((m) => m.role === 'user' || m.role === 'assistant')
+    .filter((m) => m.content.trim().length > 0)
+    .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
 
-  if (filtered.length === 0) {
-    return [{ role: 'user', content: `[System: ${SYSTEM_PROMPT}]\n\nHello` }];
-  }
+  if (filtered.length === 0) return [];
 
   // Se começa com assistant, adiciona user placeholder antes
   // (acontece quando há greeting do BMO sem conversa prévia)
@@ -140,7 +125,6 @@ function normalizeMessages(messages: ChatMessage[]): { role: 'user' | 'assistant
   let lastRole: string | null = null;
   for (const msg of filtered) {
     if (msg.role === lastRole) {
-      // Mesmo role consecutivo — skip (merge com anterior)
       const prev = normalized[normalized.length - 1];
       prev.content = prev.content + '\n' + msg.content;
     } else {
@@ -175,6 +159,11 @@ export async function chatCompletion(
       temperature: 0.8,
       top_k: 40,
       top_p: 0.95,
+      // Penalização de repetição — resolve eco do prompt em Qwen2.5 e outros
+      penalty_repeat: 1.2,     // >1.0 penaliza tokens repetidos
+      penalty_freq: 0.5,       // penaliza tokens frequentes
+      penalty_present: 0.5,    // penaliza tokens já presentes
+      penalty_last_n: 64,      // janela de 64 tokens para aplicar penalização
       stop: STOP_WORDS,
       emit_partial_completion: true,
       enable_thinking: false,
