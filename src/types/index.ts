@@ -3,6 +3,7 @@ export type ModelType = 'text' | 'vision' | 'whisper';
 export interface ModelInfo {
   id: string;
   name: string;
+  author: string;
   description: string;
   size: string;
   sizeMB: number;
@@ -42,6 +43,7 @@ export type LlamaStatus = 'idle' | 'loading' | 'ready' | 'generating' | 'error';
 export interface WhisperModelInfo {
   id: string;
   name: string;
+  author: string;
   description: string;
   size: string;
   sizeMB: number;

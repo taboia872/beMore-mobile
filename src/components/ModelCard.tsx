@@ -58,7 +58,7 @@ export default function ModelCard({
       <Text style={styles.modelName} numberOfLines={1}>{model.name}</Text>
 
       {/* === Filename completo (autor/repo) === */}
-      <Text style={styles.filename} numberOfLines={1}>{model.filename}</Text>
+      <Text style={styles.filename} numberOfLines={1}>{model.author}</Text>
 
       {/* === Descrição === */}
       <Text style={styles.description}>{model.description}</Text>

@@ -4,6 +4,7 @@ export const MODELS: ModelInfo[] = [
   {
     id: 'qwen25-15b',
     name: 'Qwen2.5 1.5B',
+    author: 'Qwen/Qwen2.5-1.5B-Instruct-GGUF',
     description: 'Modelo de texto robusto. Boa qualidade para tarefas gerais.',
     size: '~1.1 GB',
     sizeMB: 1100,
@@ -14,6 +15,7 @@ export const MODELS: ModelInfo[] = [
   {
     id: 'gemma3-1b',
     name: 'Gemma 3 1B IT',
+    author: 'unsloth/gemma-3-1b-it-GGUF',
     description: 'Modelo de texto da Google. Boa relação qualidade/tamanho.',
     size: '~800 MB',
     sizeMB: 800,
@@ -24,6 +26,7 @@ export const MODELS: ModelInfo[] = [
   {
     id: 'lfm25-12b',
     name: 'LFM2.5 1.2B',
+    author: 'unsloth/LFM2.5-1.2B-Instruct-GGUF',
     description: 'Liquid AI. Arquitetura híbrida, boa para contexto longo.',
     size: '~800 MB',
     sizeMB: 800,
@@ -34,6 +37,7 @@ export const MODELS: ModelInfo[] = [
   {
     id: 'lfm25-230m',
     name: 'LFM2.5 230M',
+    author: 'unsloth/LFM2.5-230M-GGUF',
     description: 'Ultra-leve. Ideal para testes rápidos e dispositivos com RAM limitada.',
     size: '~250 MB',
     sizeMB: 250,
@@ -44,6 +48,7 @@ export const MODELS: ModelInfo[] = [
   {
     id: 'minicpm5-1b',
     name: 'MiniCPM5 1B',
+    author: 'openbmb/MiniCPM5-1B-GGUF',
     description: 'Modelo OpenBMB. Foco em raciocínio e eficiência.',
     size: '~700 MB',
     sizeMB: 700,
@@ -54,6 +59,7 @@ export const MODELS: ModelInfo[] = [
   {
     id: 'moondream',
     name: 'Moondream',
+    author: 'salivosa/moondream2-gguf',
     description: 'Modelo de visão. Analisa imagens. Baixe sob demanda.',
     size: '~1.7 GB',
     sizeMB: 1700,
@@ -65,6 +71,7 @@ export const MODELS: ModelInfo[] = [
   {
     id: 'whisper-tiny-q5',
     name: 'Whisper Tiny Q5',
+    author: 'ggerganov/whisper.cpp',
     description: 'Mais leve. Transcrição rápida com qualidade básica. Ideal para testes.',
     size: '~32 MB',
     sizeMB: 32,
@@ -75,6 +82,7 @@ export const MODELS: ModelInfo[] = [
   {
     id: 'whisper-base-q5',
     name: 'Whisper Base Q5',
+    author: 'ggerganov/whisper.cpp',
     description: 'Equilíbrio leve entre velocidade e qualidade. Boa para uso geral.',
     size: '~60 MB',
     sizeMB: 60,
@@ -85,6 +93,7 @@ export const MODELS: ModelInfo[] = [
   {
     id: 'whisper-small-q5',
     name: 'Whisper Small Q5',
+    author: 'ggerganov/whisper.cpp',
     description: 'Qualidade superior de transcrição. Recomendado para melhor acurácia.',
     size: '~181 MB',
     sizeMB: 181,
