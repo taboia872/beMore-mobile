@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, View, Text, ScrollView, RefreshControl, Switch } from 'react-native';
-import { getRealtimeSttEnabled, setRealtimeSttEnabled } from '../services/SettingsService';
 import { MODELS } from '../data/models';
 import { ModelInfo, DownloadStatus } from '../types';
 import {
@@ -31,7 +29,6 @@ const INITIAL_STATE: ModelState = {
 export default function DownloadScreen() {
   const [states, setStates] = useState<Record<string, ModelState>>({});
   const [refreshing, setRefreshing] = useState(false);
-  const [realtimeStt, setRealtimeStt] = useState(false);
 
   const loadDownloadedFlags = useCallback(async () => {
     const flags: Record<string, ModelState> = {};
@@ -49,7 +46,6 @@ export default function DownloadScreen() {
 
   useEffect(() => {
     loadDownloadedFlags();
-    getRealtimeSttEnabled().then(setRealtimeStt);
   }, [loadDownloadedFlags]);
 
   const updateState = (id: string, partial: Partial<ModelState>) => {
@@ -96,10 +92,6 @@ export default function DownloadScreen() {
     });
   };
 
-  const handleToggleRealtime = async (enabled: boolean) => {
-    setRealtimeStt(enabled);
-    await setRealtimeSttEnabled(enabled);
-  };
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -160,25 +152,6 @@ export default function DownloadScreen() {
         {visionModels.map(renderCard)}
       </View>
 
-      {/* Configurações */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>CONFIGURAÇÕES</Text>
-        <View style={styles.settingsCard}>
-          <View style={styles.settingsRow}>
-            <View style={styles.settingsText}>
-              <Text style={styles.settingsLabel}>Transcrição em Tempo Real</Text>
-              <Text style={styles.settingsDesc}>
-                Texto aparece no chat enquanto você fala. {'\n'}
-                Requer modelo Whisper baixado.
-              </Text>
-            </View>
-            <Switch
-              value={realtimeStt}
-              onValueChange={handleToggleRealtime}
-              trackColor={{ false: '#1e1e2e', true: '#00E5FF' }}
-              thumbColor={realtimeStt ? '#000' : '#555'}
-            />
-          </View>
         </View>
       </View>
 
@@ -232,34 +205,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
     marginBottom: 8,
     marginTop: 8,
-  },
-  settingsCard: {
-    backgroundColor: '#111118',
-    borderRadius: 14,
-   padding: 16,
-    borderWidth: 1,
-    borderColor: '#1e1e2e',
-  },
-  settingsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  settingsText: {
-    flex: 1,
-    paddingRight: 12,
-  },
-  settingsLabel: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#E0E0E0',
-    fontFamily: 'monospace',
-    marginBottom: 4,
-  },
-  settingsDesc: {
-    fontSize: 12,
-    color: '#666',
-    lineHeight: 16,
   },
   footer: {
     padding: 20,

@@ -29,6 +29,12 @@ export function getActiveModelId(): string | null {
   return activeModelId;
 }
 
+export function getActiveModelName(): string | null {
+  if (!activeModelId || !activeContext) return null;
+  const model = MODELS.find((m) => m.id === activeModelId);
+  return model ? model.name : null;
+}
+
 export function isModelLoaded(): boolean {
   return activeContext !== null;
 }

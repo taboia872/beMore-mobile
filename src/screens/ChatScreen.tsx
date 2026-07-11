@@ -5,7 +5,8 @@ import {
 } from 'react-native';
 import type { ChatMessage, ModelInfo, LlamaStatus } from '../types';
 import {
-  loadModel, unloadModel, chatCompletion, stopCompletion, getActiveModelId,
+  loadModel, unloadModel, chatCompletion, stopCompletion,
+  getActiveModelId, getActiveModelName, isModelLoaded,
 } from '../services/LlamaService';
 import ChatBubble from '../components/ChatBubble';
 import ModelSelector from '../components/ModelSelector';
@@ -33,6 +34,18 @@ export default function ChatScreen({ onBack }: ChatScreenProps) {
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   const stopSignalRef = useRef<{ cancelled: boolean }>({ cancelled: false });
+
+  // Restaura estado do modelo se já estiver carregado na memória
+  useEffect(() => {
+    if (isModelLoaded()) {
+      const name = getActiveModelName();
+      if (name) {
+        setActiveModelName(name);
+        setStatus('ready');
+      }
+    }
+  }, []);
+
 
   const scrollToBottom = useCallback(() => {
     setTimeout(() => {
@@ -201,10 +214,6 @@ export default function ChatScreen({ onBack }: ChatScreenProps) {
     setInput(text);
   }, [scrollToBottom]);
 
-  const handlePartialTranscription = useCallback((text: string) => {
-    setInput(text);
-  }, []);
-
   const canSend = status === 'ready' && input.trim().length > 0;
 
   return (
@@ -273,7 +282,6 @@ export default function ChatScreen({ onBack }: ChatScreenProps) {
       <View style={styles.inputBar}>
         <VoiceButton
           onTranscription={handleVoiceTranscription}
-          onPartialTranscription={handlePartialTranscription}
           disabled={status !== 'ready'}
         />
         <TextInput
