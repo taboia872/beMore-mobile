@@ -153,8 +153,6 @@ export default function DownloadScreen() {
         {visionModels.map(renderCard)}
       </View>
 
-        </View>
-      </View>
 
       {/* Footer */}
       <View style={styles.footer}>
