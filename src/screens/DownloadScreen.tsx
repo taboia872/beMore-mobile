@@ -255,6 +255,27 @@ export default function DownloadScreen() {
       </View>
 
 
+      {/* === TTS Voices === */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>TEXT-TO-SPEECH (Piper VITS)</Text>
+        {TTS_VOICES.map((voice) => {
+          const s = ttsStates[voice.id] || { status: 'idle' as TtsStatus, progress: 0, downloaded: false, active: false };
+          return (
+            <TtsCard
+              key={voice.id}
+              voice={voice}
+              status={s.status}
+              progress={s.progress}
+              alreadyDownloaded={s.downloaded}
+              isActive={s.active}
+              onDownload={() => handleTtsDownload(voice.id)}
+              onActivate={() => handleTtsActivate(voice.id)}
+              onDelete={() => handleTtsDelete(voice.id)}
+            />
+          );
+        })}
+      </View>
+
       {/* Footer */}
       <View style={styles.footer}>
         <Text style={styles.footerText}>
