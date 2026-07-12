@@ -2,10 +2,11 @@
 """
 Single unified patch script for TTSManagerModule.kt
 Applies all patches to the ORIGINAL file from npm in one pass.
+
 Patches:
   1. Convert initializeTTS from sync to Promise + background thread
-  2. Insert extractTarBz2 method before generateAndPlay
-  3. Add logging to catch blocks
+  2. Insert extractZip method (java.util.zip.ZipInputStream — native, no Apache Commons)
+  3. Add Log import
 """
 import sys
 
@@ -18,6 +19,15 @@ with open(file_path, "r") as f:
     content = f.read()
 
 modified = False
+
+# --- PATCH 1b: Add Log import if missing ---
+if 'import android.util.Log' not in content:
+    content = content.replace(
+        'import org.json.JSONObject',
+        'import org.json.JSONObject\nimport android.util.Log'
+    )
+    modified = True
+    print("  [OK] Patch 1b: Added Log import")
 
 # --- PATCH 1: initializeTTS sync -> Promise + thread{} ---
 OLD_SIG = '    fun initializeTTS(sampleRate: Double, channels: Int, modelId: String) {'
@@ -54,76 +64,61 @@ if OLD_SIG in content and OLD_END in content:
 elif 'fun initializeTTS(sampleRate: Double, channels: Int, modelId: String, promise: Promise)' in content:
     print("  [SKIP] Patch 1: initializeTTS already patched")
 else:
-    print("  [WARN] Patch 1: initializeTTS signature not found - may already be patched")
-    # Continue anyway - file might already be partially patched
+    print("  [WARN] Patch 1: initializeTTS signature not found")
 
-# --- PATCH 1b: Add Log import if missing ---
-if 'import android.util.Log' not in content:
-    content = content.replace(
-        'import org.json.JSONObject',
-        'import org.json.JSONObject\nimport android.util.Log'
-    )
-    modified = True
-    print("  [OK] Patch 1b: Added Log import")
-
-# --- PATCH 2: Insert extractTarBz2 before generateAndPlay ---
-EXTRACT_METHOD = '''    // Extract .tar.bz2 archive to destination directory
-    // Uses Apache Commons Compress for robust tar.bz2 extraction
+# --- PATCH 2: Insert extractZip (java.util.zip.ZipInputStream — NATIVE, no Apache Commons) ---
+EXTRACT_METHOD = '''    // Extract .zip archive to destination directory
+    // Uses java.util.zip.ZipInputStream (native Android — no Apache Commons dependency)
     @ReactMethod
-    fun extractTarBz2(archivePath: String, destDir: String, promise: Promise) {
+    fun extractZip(zipPath: String, destDir: String, promise: Promise) {
         thread {
             try {
-                val archiveFile = File(archivePath)
-                if (!archiveFile.exists()) {
-                    throw IOException("Archive not found: $archivePath")
+                val zipFile = File(zipPath)
+                if (!zipFile.exists()) {
+                    throw IOException("Zip not found: $zipPath")
                 }
 
-                Log.i("TTSManager", "Extracting: $archivePath -> $destDir")
+                Log.i("TTSManager", "Extracting zip: $zipPath -> $destDir")
 
                 val destination = File(destDir)
                 if (!destination.exists()) {
                     destination.mkdirs()
                 }
 
-                val fis = java.io.FileInputStream(archiveFile)
-                val bzIn = org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream(fis)
-                val tarIn = org.apache.commons.compress.archivers.tar.TarArchiveInputStream(bzIn)
-
-                var entry: org.apache.commons.compress.archivers.tar.TarArchiveEntry? = tarIn.nextEntry
-                Log.i("TTSManager", "Starting tar extraction loop")
-                var count = 0
-                while (entry != null) {
-                    if (!entry.isDirectory) {
-                        val outFile = File(destination, entry.name)
-                        outFile.parentFile?.mkdirs()
-                        java.io.FileOutputStream(outFile).use { fos ->
-                            val buffer = ByteArray(8192)
-                            var len: Int
-                            while (true) {
-                                len = tarIn.read(buffer)
-                                if (len == -1) break
-                                fos.write(buffer, 0, len)
+                java.io.FileInputStream(zipFile).use { fis ->
+                    java.util.zip.ZipInputStream(fis).use { zis ->
+                        var entry = zis.nextEntry
+                        var count = 0
+                        while (entry != null) {
+                            if (!entry.isDirectory) {
+                                val outFile = File(destination, entry.name)
+                                outFile.parentFile?.mkdirs()
+                                java.io.FileOutputStream(outFile).use { fos ->
+                                    val buffer = ByteArray(8192)
+                                    var len: Int
+                                    while (true) {
+                                        len = zis.read(buffer)
+                                        if (len == -1) break
+                                        fos.write(buffer, 0, len)
+                                    }
+                                }
+                                count++
+                                Log.i("TTSManager", "Extracted ($count): ${entry.name}")
                             }
+                            entry = zis.nextEntry
                         }
-                        count++
-                        Log.i("TTSManager", "Extracted ($count): ${entry.name}")
                     }
-                    entry = tarIn.nextEntry
                 }
 
-                tarIn.close()
-                bzIn.close()
-                fis.close()
-
-                Log.i("TTSManager", "Extraction complete: $count files extracted to $destDir")
+                Log.i("TTSManager", "Zip extraction complete: $count files to $destDir")
 
                 reactContext.runOnUiQueueThread {
                     promise.resolve(destDir)
                 }
             } catch (e: Exception) {
-                Log.e("TTSManager", "Extraction FAILED: ${e.message}", e)
+                Log.e("TTSManager", "Zip extraction FAILED: ${e.message}", e)
                 reactContext.runOnUiQueueThread {
-                    promise.reject("EXTRACT_ERROR", "Failed to extract archive: ${e.message}", e)
+                    promise.reject("EXTRACT_ERROR", "Failed to extract zip: ${e.message}", e)
                 }
             }
         }
@@ -133,25 +128,20 @@ EXTRACT_METHOD = '''    // Extract .tar.bz2 archive to destination directory
 
 # Insert before generateAndPlay
 MARKER = "    // Generate and Play method exposed to React Native"
-if 'fun extractTarBz2' not in content:
+if 'fun extractZip' not in content:
     if MARKER in content:
         content = content.replace(MARKER, EXTRACT_METHOD + MARKER)
         modified = True
-        print("  [OK] Patch 2: extractTarBz2 inserted before generateAndPlay")
+        print("  [OK] Patch 2: extractZip inserted before generateAndPlay")
     else:
         print("  [ERROR] Patch 2: Marker 'generateAndPlay' not found!")
         sys.exit(1)
 else:
-    print("  [SKIP] Patch 2: extractTarBz2 already present")
-
-# --- PATCH 3: Add logging to extractTarBz2 and initializeTTS catches ---
-# Already handled inline in patches 1 and 2 above
-# This patch is now redundant - keeping for compatibility
-print("  [OK] Patch 3: Logging already integrated in patches 1+2")
+    print("  [SKIP] Patch 2: extractZip already present")
 
 if modified:
     with open(file_path, "w") as f:
         f.write(content)
     print("  [DONE] All patches applied to TTSManagerModule.kt")
 else:
-    print("  [DONE] No changes needed - all patches already applied")
+    print("  [DONE] No changes needed — all patches already applied")
