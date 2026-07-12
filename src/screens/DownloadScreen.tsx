@@ -10,6 +10,18 @@ import {
   deleteModel,
 } from '../services/DownloadManager';
 import ModelCard from '../components/ModelCard';
+import TtsCard from '../components/TtsCard';
+import {
+  TTS_VOICES,
+  isVoiceDownloaded,
+  downloadVoice,
+  deleteVoice as deleteTtsVoice,
+  initializeTts,
+  isTtsInitialized,
+  getActiveVoiceId,
+  deinitializeTts,
+  type TtsStatus,
+} from '../services/TtsService';
 
 interface ModelState {
   status: DownloadStatus;
@@ -17,6 +29,13 @@ interface ModelState {
   speed: number;
   downloaded: boolean;
   downloadedSize: number;
+}
+
+interface TtsVoiceState {
+  status: TtsStatus;
+  progress: number;
+  downloaded: boolean;
+  active: boolean;
 }
 
 const INITIAL_STATE: ModelState = {
@@ -29,6 +48,7 @@ const INITIAL_STATE: ModelState = {
 
 export default function DownloadScreen() {
   const [states, setStates] = useState<Record<string, ModelState>>({});
+  const [ttsStates, setTtsStates] = useState<Record<string, TtsVoiceState>>({});
   const [refreshing, setRefreshing] = useState(false);
 
   const loadDownloadedFlags = useCallback(async () => {
@@ -43,6 +63,20 @@ export default function DownloadScreen() {
       };
     }
     setStates(flags);
+
+    // Carrega vozes TTS
+    const ttsFlags: Record<string, TtsVoiceState> = {};
+    const activeVid = getActiveVoiceId();
+    for (const voice of TTS_VOICES) {
+      const dl = await isVoiceDownloaded(voice.id);
+      ttsFlags[voice.id] = {
+        status: 'idle',
+        progress: 0,
+        downloaded: dl,
+        active: activeVid === voice.id,
+      };
+    }
+    setTtsStates(ttsFlags);
   }, []);
 
   useEffect(() => {
@@ -90,6 +124,73 @@ export default function DownloadScreen() {
       speed: 0,
       downloaded: false,
       downloadedSize: 0,
+    });
+  };
+
+  const updateTtsState = (id: string, partial: Partial<TtsVoiceState>) => {
+    setTtsStates((prev) => ({
+      ...prev,
+      [id]: { ...(prev[id] || { status: 'idle', progress: 0, downloaded: false, active: false }), ...partial },
+    }));
+  };
+
+  const handleTtsDownload = (voiceId: string) => {
+    updateTtsState(voiceId, { status: 'downloading', progress: 0 });
+    downloadVoice(voiceId, (status, received, total, message) => {
+      if (status === 'downloading') {
+        const pct = total > 0 ? received / total : 0;
+        updateTtsState(voiceId, { status: 'downloading', progress: pct });
+      } else if (status === 'extracting') {
+        updateTtsState(voiceId, { status: 'extracting', progress: 0.5 });
+      } else if (status === 'loading') {
+        updateTtsState(voiceId, { status: 'loading', progress: 0.9 });
+      } else if (status === 'ready') {
+        updateTtsState(voiceId, { status: 'idle', progress: 1, downloaded: true });
+      } else if (status === 'error') {
+        updateTtsState(voiceId, { status: 'error', progress: 0 });
+      }
+    }).catch((err) => {
+      updateTtsState(voiceId, { status: 'error', progress: 0 });
+      console.warn('TTS download error:', err);
+    });
+  };
+
+  const handleTtsActivate = async (voiceId: string) => {
+    // Se já tem uma voz ativa, desativa primeiro
+    const currentActive = getActiveVoiceId();
+    if (currentActive && currentActive !== voiceId) {
+      await deinitializeTts();
+      updateTtsState(currentActive, { active: false });
+    }
+
+    updateTtsState(voiceId, { status: 'loading', progress: 0.9 });
+    try {
+      await initializeTts(voiceId);
+      updateTtsState(voiceId, { status: 'idle', active: true });
+      // Atualiza todas as vozes para refletir qual está ativa
+      setTtsStates((prev) => {
+        const updated = { ...prev };
+        for (const k of Object.keys(updated)) {
+          updated[k] = { ...updated[k], active: k === voiceId };
+        }
+        return updated;
+      });
+    } catch (err) {
+      updateTtsState(voiceId, { status: 'error', progress: 0 });
+      console.warn('TTS init error:', err);
+    }
+  };
+
+  const handleTtsDelete = async (voiceId: string) => {
+    if (getActiveVoiceId() === voiceId) {
+      await deinitializeTts();
+    }
+    await deleteTtsVoice(voiceId);
+    updateTtsState(voiceId, {
+      status: 'idle',
+      progress: 0,
+      downloaded: false,
+      active: false,
     });
   };
 

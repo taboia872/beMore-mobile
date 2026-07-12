@@ -11,6 +11,16 @@ import {
 import ChatBubble from '../components/ChatBubble';
 import ModelSelector from '../components/ModelSelector';
 import VoiceButton from '../components/VoiceButton';
+import {
+  isTtsInitialized as ttsIsReady,
+  getActiveVoiceId,
+  initializeTts,
+  speak as ttsSpeak,
+  stopSpeaking as ttsStop,
+  deinitializeTts,
+  isVoiceDownloaded,
+  TTS_VOICES,
+} from '../services/TtsService';
 
 interface ChatScreenProps {
   onBack: () => void;
@@ -34,6 +44,9 @@ export default function ChatScreen({ onBack }: ChatScreenProps) {
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   const stopSignalRef = useRef<{ cancelled: boolean }>({ cancelled: false });
+  const [ttsEnabled, setTtsEnabled] = useState(false);
+  const [ttsLoading, setTtsLoading] = useState(false);
+  const [ttsStatus, setTtsStatus] = useState<string | null>(null);
 
   // Restaura estado do modelo se já estiver carregado na memória
   useEffect(() => {
@@ -44,7 +57,52 @@ export default function ChatScreen({ onBack }: ChatScreenProps) {
         setStatus('ready');
       }
     }
+    // Verifica se TTS já está inicializado (pode ter sobrevivido a reload)
+    if (ttsIsReady()) {
+      const vid = getActiveVoiceId();
+      if (vid) {
+        setTtsEnabled(true);
+      }
+    }
   }, []);
+
+  // Toggle TTS
+  const handleToggleTts = useCallback(async () => {
+    if (ttsEnabled) {
+      // Desativar
+      await deinitializeTts();
+      setTtsEnabled(false);
+      return;
+    }
+
+    // Ativar — precisa de uma voz baixada
+    setTtsLoading(true);
+    setTtsStatus(null);
+    try {
+      // Procura primeira voz já baixada
+      let voiceId: string | null = null;
+      for (const v of TTS_VOICES) {
+        if (await isVoiceDownloaded(v.id)) {
+          voiceId = v.id;
+          break;
+        }
+      }
+
+      if (!voiceId) {
+        setTtsStatus('Baixe uma voz na tela de Downloads primeiro');
+        setTtsLoading(false);
+        return;
+      }
+
+      setTtsStatus('Carregando voz...');
+      await initializeTts(voiceId);
+      setTtsEnabled(true);
+      setTtsStatus(null);
+    } catch (err) {
+      setTtsStatus(err instanceof Error ? err.message : String(err));
+    }
+    setTtsLoading(false);
+  }, [ttsEnabled]);
 
 
   const scrollToBottom = useCallback(() => {
@@ -142,6 +200,7 @@ export default function ChatScreen({ onBack }: ChatScreenProps) {
         stopSignalRef.current,
       );
 
+      let finalText = '';
       setMessages((prev) => {
         const updated = [...prev];
         const last = updated[updated.length - 1];
@@ -150,9 +209,20 @@ export default function ChatScreen({ onBack }: ChatScreenProps) {
             ...last,
             isStreaming: false,
           };
+          finalText = last.content;
         }
         return updated;
       });
+
+      // TTS: fala a resposta se ativado
+      if (ttsEnabled && finalText) {
+        try {
+          await ttsSpeak(finalText);
+        } catch (ttsErr) {
+          // TTS falhou silenciosamente — não bloqueia o chat
+          console.warn('TTS speak failed:', ttsErr);
+        }
+      }
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       setMessages((prev) => {
@@ -235,6 +305,15 @@ export default function ChatScreen({ onBack }: ChatScreenProps) {
             {activeModelName ? `${activeModelName}` : 'Select Model'}
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.ttsBtn, ttsEnabled && styles.ttsBtnActive]}
+          onPress={handleToggleTts}
+          disabled={ttsLoading}
+        >
+          <Text style={styles.ttsBtnText}>
+            {ttsLoading ? '⏳' : ttsEnabled ? '🔊' : '🔇'}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Status / Loading */}
@@ -249,6 +328,11 @@ export default function ChatScreen({ onBack }: ChatScreenProps) {
       {error && (
         <View style={styles.errorBar}>
           <Text style={styles.errorText}>{error}</Text>
+        </View>
+      )}
+      {ttsStatus && (
+        <View style={styles.ttsStatusBar}>
+          <Text style={styles.ttsStatusText}>{ttsStatus}</Text>
         </View>
       )}
 
@@ -465,5 +549,32 @@ const styles = StyleSheet.create({
   stopBtnText: {
     color: '#FF6B6B',
     fontSize: 14,
+  },
+  ttsBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#111118',
+    borderWidth: 1,
+    borderColor: '#1a1a2e',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ttsBtnActive: {
+    backgroundColor: '#00E5FF',
+    borderColor: '#00E5FF',
+  },
+  ttsBtnText: {
+    fontSize: 18,
+  },
+  ttsStatusBar: {
+    padding: 6,
+    backgroundColor: '#0d0d14',
+    alignItems: 'center',
+  },
+  ttsStatusText: {
+    fontSize: 12,
+    color: '#888',
+    fontFamily: 'monospace',
   },
 });
