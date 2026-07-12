@@ -64,4 +64,7 @@ else
   python3 apply_patches.init_tts.py "$LIB_KOTLIN"
 fi
 
-echo "Patches applied successfully!"
+# 4. Patch TTSManagerModule.kt: add logging to extractTarBz2 and initializeTTS catches
+python3 apply_patches.logging.py "$LIB_KOTLIN"
+
+echo "Patches applied successfully!" 

@@ -95,10 +95,13 @@ export default function ChatScreen({ onBack }: ChatScreenProps) {
       }
 
       setTtsStatus('Carregando voz...');
+      console.log('[ChatScreen] TTS toggle: voiceId =', voiceId);
       await initializeTts(voiceId);
+      console.log('[ChatScreen] TTS: initializeTts resolved');
       setTtsEnabled(true);
       setTtsStatus(null);
     } catch (err) {
+      console.error('[ChatScreen] TTS toggle error:', err);
       setTtsStatus(err instanceof Error ? err.message : String(err));
     }
     setTtsLoading(false);

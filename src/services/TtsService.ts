@@ -157,9 +157,13 @@ export async function isVoiceDownloaded(voiceId: string): Promise<boolean> {
   try {
     const onnxExists = await RNFS.exists(onnxPath);
     if (!onnxExists) return false;
+    const onnxStat = await RNFS.stat(onnxPath);
+    if (!onnxStat || onnxStat.size < 1000) return false;
 
     const tokensExists = await RNFS.exists(tokensPath);
     if (!tokensExists) return false;
+    const tokensStat = await RNFS.stat(tokensPath);
+    if (!tokensStat || tokensStat.size < 10) return false;
 
     const dataDirExists = await RNFS.exists(dataDir);
     if (!dataDirExists) return false;
@@ -284,12 +288,28 @@ export async function downloadVoice(
     // extractTarBz2(archivePath, destDir) — extrai para destDir/
     // Resultado: destDir/vits-piper-xxx/ com .onnx, tokens.txt, espeak-ng-data/
     // Método nativo via Promise (extração em background thread)
-    await TTSManager.extractTarBz2(archivePath, destDir);
+    console.log('[TTS] extractTarBz2: start', { archivePath, destDir });
+    const archiveSize = await RNFS.stat(archivePath);
+    console.log('[TTS] archive size:', archiveSize?.size, 'bytes');
+    const extractPromise = TTSManager.extractTarBz2(archivePath, destDir);
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('extractTarBz2 timeout after 60s')), 60000)
+    );
+    await Promise.race([extractPromise, timeoutPromise]);
+    console.log('[TTS] extractTarBz2: resolved OK');
 
     // Step 3: Validate extracted files
     const onnxPath = `${getVoiceDir(voice)}/${voice.onnxFilename}`;
     const onnxExists = await RNFS.exists(onnxPath);
+    console.log('[TTS] post-extract: onnxExists =', onnxExists, 'at', onnxPath);
     if (!onnxExists) {
+      // List what was extracted
+      try {
+        const items = await RNFS.readDir(destDir);
+        console.log('[TTS] destDir contents:', items.map(i => i.name));
+      } catch (e) {
+        console.log('[TTS] cannot list destDir:', e);
+      }
       throw new Error(`Extraction failed: .onnx not found at ${onnxPath}`);
     }
 
@@ -407,10 +427,17 @@ export async function injectVoice(bundle: VoiceBundle): Promise<void> {
     dataDirPath: bundle.dataDirPath,
   });
 
+  console.log('[TTS] injectVoice: calling initializeTTS', {
+    sampleRate: bundle.sampleRate,
+    modelPath: bundle.modelPath,
+    tokensPath: bundle.tokensPath,
+    dataDirPath: bundle.dataDirPath,
+  });
   // Chama initializeTTS com o sample_rate correto do modelo
   // A lib wrapper hardcode 22050, mas lidamos direto com o native module
   await TTSManager.initializeTTS(bundle.sampleRate, 1, config);
 
+  console.log('[TTS] injectVoice: initializeTTS resolved OK');
   isInitialized = true;
   activeVoiceBundle = bundle;
 }
