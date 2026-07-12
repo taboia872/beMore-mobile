@@ -10,6 +10,7 @@ import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.load
 import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
 import com.facebook.react.defaults.DefaultReactNativeHost
 import com.facebook.react.soloader.OpenSourceMergedSoMapping
+import com.sherpaonnxofflinetts.TTSManagerPackage
 import com.facebook.soloader.SoLoader
 
 class MainApplication : Application(), ReactApplication {
@@ -20,6 +21,7 @@ class MainApplication : Application(), ReactApplication {
             PackageList(this).packages.apply {
               // Native modules customizados
               add(PcmRecorderPackage())
+              add(TTSManagerPackage())
             }
 
         override fun getJSMainModuleName(): String = "index"
