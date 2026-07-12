@@ -77,10 +77,18 @@ android {
     }
 }
 
+repositories {
+    flatDir {
+        dirs 'libs'
+    }
+}
+
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
     implementation("androidx.core:core-ktx:1.13.1")
+    // sherpa-onnx .aar moved from lib to app level (AGP 8 rejects local .aar in library AAR)
+    implementation name: 'sherpa-onnx-1.10.35', ext: 'aar' 
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
