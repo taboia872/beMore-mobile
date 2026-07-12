@@ -56,4 +56,12 @@ print('  [OK] extractTarBz2 inserted into TTSManagerModule.kt')
 "
 fi
 
+# 3. Patch TTSManagerModule.kt: convert initializeTTS from sync to Promise + background thread
+#    OfflineTts(config) loads 64MB ONNX model — doing this on UI thread causes ANR → crash
+if grep -q "fun initializeTTS.*promise: Promise" "$LIB_KOTLIN" 2>/dev/null; then
+  echo "  [SKIP] initializeTTS already patched with Promise"
+else
+  python3 apply_patches.init_tts.py "$LIB_KOTLIN"
+fi
+
 echo "Patches applied successfully!"
