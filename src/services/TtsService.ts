@@ -63,16 +63,16 @@ const ASSETS_BASE = 'https://github.com/taboia872/beMore-mobile/releases/downloa
 
 export const TTS_VOICES: TtsVoiceInfo[] = [
   {
-    id: 'en_US-amy-low',
-    name: 'Amy (EN-US, Low)',
-    description: 'Voz feminina em inglês americano. Compacta (~64MB). Ideal para primeiro teste.',
-    sizeMB: 68,
-    language: 'Inglês (US)',
+    id: 'pt_BR-faber-medium',
+    name: 'Faber (PT-BR, Medium)',
+    description: 'Voz masculina em português brasileiro. Natural e clara (~60MB).',
+    sizeMB: 63,
+    language: 'Português (BR)',
     baseUrl: `${ASSETS_BASE}`,
-    onnxFilename: 'en_US-amy-low.onnx',
-    onnxJsonFilename: 'en_US-amy-low.onnx.json',
-    tokensFilename: 'tokens.txt',
-    espeakZipFilename: 'espeak-ng-data.zip',
+    onnxFilename: 'pt_BR-faber-medium.onnx',
+    onnxJsonFilename: 'pt_BR-faber-medium.onnx.json',
+    tokensFilename: 'pt_BR-faber-medium-tokens.txt',
+    espeakZipFilename: 'pt_BR-espeak-ng-data.zip',
   },
 ];
 

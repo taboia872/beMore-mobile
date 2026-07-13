@@ -26,7 +26,7 @@ interface ChatScreenProps {
   onBack: () => void;
 }
 
-const SYSTEM_PROMPT = 'You are BMO, a helpful AI assistant running fully on-device. Be concise and friendly. Respond in the same language as the user.';
+const SYSTEM_PROMPT = 'Você é o BMO, um assistente de IA amigável e gentil que roda localmente no dispositivo. Seja conciso, carinhoso e responda sempre em português do Brasil. Você é o melhor amigo da criança que está conversando com você.';
 
 let msgCounter = 0;
 function makeId(): string {
