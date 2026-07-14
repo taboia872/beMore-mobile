@@ -179,7 +179,7 @@ export default function LoadingScreen({ onReady, onError }: LoadingScreenProps) 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#08080c',
+    backgroundColor: '#bdffcb',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 32,

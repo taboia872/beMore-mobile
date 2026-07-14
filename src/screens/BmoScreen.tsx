@@ -254,7 +254,7 @@ const FACE_SIZE = Math.min(width * 0.85, height * 0.5);
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#08080c',
+    backgroundColor: '#bdffcb',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 40,
