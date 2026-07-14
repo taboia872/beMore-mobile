@@ -12,10 +12,17 @@ const STOP_WORDS = [
   '<|end_of_turn|>', '<end_of_turn>',
 ];
 
-// System prompt embutido — não enviado como mensagem separada para evitar
-// erros de validação de alternância em modelos com chat templates estritos
-// (ex: Gemma 3 que exige user/assistant/user/assistant começando com user)
-const SYSTEM_PROMPT = 'You are BMO, a helpful AI assistant running fully on-device. Be concise and friendly. Respond in the same language as the user.';
+// System prompt — parametrizado. Default injetado no App boot.
+// Substituível via setSystemPrompt() carregado do AsyncStorage.
+let SYSTEM_PROMPT = 'You are BMO, a helpful AI assistant running fully on-device. Be concise and friendly. Respond in the same language as the user.';
+
+export function setSystemPrompt(prompt: string): void {
+  SYSTEM_PROMPT = prompt;
+}
+
+export function getSystemPrompt(): string {
+  return SYSTEM_PROMPT;
+}
 
 export function getModelsDir(): string {
   return `${RNFS.DocumentDirectoryPath}/models`;
