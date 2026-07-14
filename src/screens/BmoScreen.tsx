@@ -1,17 +1,17 @@
 /**
- * BmoScreen — tela do rostinho do BMO
+ * BmoScreen — tela do rostinho do BMO com imagens reais
  * Sem chat, sem input bar. Só face + voz (botão PTT).
- * Botão de settings (engrenagem discreta) no canto.
+ * Imagens em res/drawable/ (android resource).
  */
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
-  StyleSheet, View, Text, TouchableOpacity, ActivityIndicator,
-  Dimensions, Animated,
+  StyleSheet, View, Text, TouchableOpacity,
+  Dimensions, Image,
 } from 'react-native';
 import VoiceButton from '../components/VoiceButton';
 import {
-  chatCompletion, stopCompletion, isModelLoaded, getActiveModelName,
+  chatCompletion, stopCompletion, isModelLoaded,
 } from '../services/LlamaService';
 import {
   speak as ttsSpeak, stopSpeaking as ttsStop, isTtsInitialized,
@@ -23,7 +23,7 @@ interface BmoScreenProps {
   onOpenSettings: () => void;
 }
 
-type BmoState = 'idle' | 'listening' | 'thinking' | 'speaking';
+type BmoState = 'idle' | 'listening' | 'thinking' | 'speaking' | 'error';
 
 let msgCounter = 0;
 function makeId(): string {
@@ -31,14 +31,43 @@ function makeId(): string {
   return `bmo_${Date.now()}_${msgCounter}`;
 }
 
+// Mapeamento estado → imagem
+const FACE_IMAGES: Record<BmoState, number> = {
+  idle: require('../assets/bmo/bmo_idle.png'),
+  listening: require('../assets/bmo/bmo_listen_01.png'),
+  thinking: require('../assets/bmo/bmo_thinking_01.png'),
+  speaking: require('../assets/bmo/bmo_speaking_01.png'),
+  error: require('../assets/bmo/bmo_error.png'),
+};
+
+// Frames de animação para thinking e speaking
+const THINKING_FRAMES = [
+  require('../assets/bmo/bmo_thinking_01.png'),
+  require('../assets/bmo/bmo_thinking_02.png'),
+  require('../assets/bmo/bmo_thinking_03.png'),
+  require('../assets/bmo/bmo_thinking_04.png'),
+];
+
+const SPEAKING_FRAMES = [
+  require('../assets/bmo/bmo_speaking_01.png'),
+  require('../assets/bmo/bmo_speaking_02.png'),
+  require('../assets/bmo/bmo_speaking_03.png'),
+];
+
+const LISTEN_FRAMES = [
+  require('../assets/bmo/bmo_listen_01.png'),
+  require('../assets/bmo/bmo_listen_02.png'),
+];
+
 export default function BmoScreen({ onOpenSettings }: BmoScreenProps) {
   const [bmoState, setBmoState] = useState<BmoState>('idle');
   const [error, setError] = useState<string | null>(null);
   const [modelReady, setModelReady] = useState(false);
   const [systemPrompt, setSystemPrompt] = useState('');
+  const [currentFrame, setCurrentFrame] = useState(0);
   const stopSignalRef = useRef<{ cancelled: boolean }>({ cancelled: false });
-  const [conversation, setConversation] = useState<ChatMessage[]>([]);
-  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const conversationRef = useRef<ChatMessage[]>([]);
+  const frameTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Carrega system prompt + verifica modelo
   useEffect(() => {
@@ -49,22 +78,55 @@ export default function BmoScreen({ onOpenSettings }: BmoScreenProps) {
     })();
   }, []);
 
-  // Animação de pulso quando processando ou falando
+  // Animação de frames para thinking/speaking/listening
   useEffect(() => {
-    if (bmoState === 'thinking' || bmoState === 'speaking') {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 1.15, duration: 800, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
-        ]),
-      ).start();
-    } else {
-      pulseAnim.setValue(1);
+    if (frameTimerRef.current) {
+      clearInterval(frameTimerRef.current);
+      frameTimerRef.current = null;
     }
-  }, [bmoState, pulseAnim]);
+
+    if (bmoState === 'thinking') {
+      frameTimerRef.current = setInterval(() => {
+        setCurrentFrame((prev) => (prev + 1) % THINKING_FRAMES.length);
+      }, 300);
+    } else if (bmoState === 'speaking') {
+      frameTimerRef.current = setInterval(() => {
+        setCurrentFrame((prev) => (prev + 1) % SPEAKING_FRAMES.length);
+      }, 200);
+    } else if (bmoState === 'listening') {
+      frameTimerRef.current = setInterval(() => {
+        setCurrentFrame((prev) => (prev + 1) % LISTEN_FRAMES.length);
+      }, 500);
+    }
+
+    return () => {
+      if (frameTimerRef.current) {
+        clearInterval(frameTimerRef.current);
+        frameTimerRef.current = null;
+      }
+    };
+  }, [bmoState]);
+
+  const getCurrentFace = (): number => {
+    switch (bmoState) {
+      case 'thinking': return THINKING_FRAMES[currentFrame];
+      case 'speaking': return SPEAKING_FRAMES[currentFrame];
+      case 'listening': return LISTEN_FRAMES[currentFrame];
+      case 'error': return FACE_IMAGES.error;
+      default: return FACE_IMAGES.idle;
+    }
+  };
+
+  const statusText = () => {
+    switch (bmoState) {
+      case 'listening': return 'Ouvindo...';
+      case 'thinking': return 'Pensando...';
+      case 'speaking': return 'Falando...';
+      default: return '';
+    }
+  };
 
   const handleVoiceTranscription = useCallback(async (text: string) => {
-    // Ignora debug do STT
     if (text.startsWith('[STT DEBUG]')) return;
     if (!text.trim()) return;
 
@@ -86,12 +148,12 @@ export default function BmoScreen({ onOpenSettings }: BmoScreenProps) {
       isStreaming: true,
     };
 
-    setConversation((prev) => [...prev, userMsg, assistantMsg]);
+    conversationRef.current = [...conversationRef.current, userMsg, assistantMsg];
     stopSignalRef.current = { cancelled: false };
 
     const conversationMessages: ChatMessage[] = [
       { id: 'sys', role: 'system', content: systemPrompt, timestamp: 0 },
-      ...conversation.filter((m) => !m.isError && m.role !== 'system'),
+      ...conversationRef.current.filter((m) => !m.isError && m.role !== 'system'),
       userMsg,
     ];
 
@@ -100,29 +162,18 @@ export default function BmoScreen({ onOpenSettings }: BmoScreenProps) {
       await chatCompletion(
         conversationMessages,
         (_token, accumulated) => {
-          setConversation((prev) => {
-            const updated = [...prev];
-            const last = updated[updated.length - 1];
-            if (last && last.role === 'assistant' && last.isStreaming) {
-              updated[updated.length - 1] = { ...last, content: accumulated };
-            }
-            return updated;
-          });
           finalText = accumulated;
         },
         stopSignalRef.current,
       );
 
-      // Finaliza mensagem
-      setConversation((prev) => {
-        const updated = [...prev];
-        const last = updated[updated.length - 1];
-        if (last && last.role === 'assistant') {
-          updated[updated.length - 1] = { ...last, isStreaming: false };
-          finalText = last.content;
-        }
-        return updated;
-      });
+      // Atualiza última mensagem
+      const conv = [...conversationRef.current];
+      const last = conv[conv.length - 1];
+      if (last && last.role === 'assistant') {
+        conv[conv.length - 1] = { ...last, content: finalText, isStreaming: false };
+        conversationRef.current = conv;
+      }
 
       // TTS — fala a resposta
       if (isTtsInitialized() && finalText) {
@@ -138,22 +189,10 @@ export default function BmoScreen({ onOpenSettings }: BmoScreenProps) {
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       setError(errMsg);
-      setConversation((prev) => {
-        const updated = [...prev];
-        const last = updated[updated.length - 1];
-        if (last && last.role === 'assistant') {
-          updated[updated.length - 1] = {
-            ...last,
-            content: `Erro: ${errMsg}`,
-            isStreaming: false,
-            isError: true,
-          };
-        }
-        return updated;
-      });
-      setBmoState('idle');
+      setBmoState('error');
+      setTimeout(() => setBmoState('idle'), 3000);
     }
-  }, [systemPrompt, conversation]);
+  }, [systemPrompt]);
 
   const handleStop = useCallback(async () => {
     stopSignalRef.current.cancelled = true;
@@ -162,65 +201,25 @@ export default function BmoScreen({ onOpenSettings }: BmoScreenProps) {
     setBmoState('idle');
   }, []);
 
-  // Cor dos olhos baseado no estado
-  const eyeColor = () => {
-    switch (bmoState) {
-      case 'listening': return '#00FF66';
-      case 'thinking': return '#FFD700';
-      case 'speaking': return '#00E5FF';
-      default: return '#00E5FF';
-    }
-  };
-
-  // Texto de status
-  const statusText = () => {
-    switch (bmoState) {
-      case 'listening': return 'Ouvindo...';
-      case 'thinking': return 'Pensando...';
-      case 'speaking': return 'Falando...';
-      default: return '';
-    }
-  };
-
-  const pulseScale = bmoState === 'thinking' || bmoState === 'speaking'
-    ? pulseAnim
-    : new Animated.Value(1);
-
   return (
     <View style={styles.container}>
-      {/* Settings button — discreto, canto sup esquerdo */}
+      {/* Settings button — discreto */}
       <TouchableOpacity style={styles.settingsBtn} onPress={onOpenSettings}>
         <Text style={styles.settingsIcon}>⚙️</Text>
       </TouchableOpacity>
 
-      {/* BMO Face — centralizado */}
+      {/* BMO Face */}
       <View style={styles.faceContainer}>
-        <Animated.View style={[styles.face, { transform: [{ scale: pulseScale }] }]}>
-          {/* Olhos */}
-          <View style={styles.eyesRow}>
-            <View style={[styles.eye, { backgroundColor: eyeColor() }]} />
-            <View style={[styles.eye, { backgroundColor: eyeColor() }]} />
-          </View>
-          {/* Boca — muda com o estado */}
-          <View style={styles.mouthContainer}>
-            {bmoState === 'speaking' ? (
-              <View style={styles.mouthSpeaking}>
-                <View style={styles.mouthBar} />
-                <View style={[styles.mouthBar, { height: 16 }]} />
-                <View style={styles.mouthBar} />
-              </View>
-            ) : bmoState === 'listening' ? (
-              <View style={styles.mouthListening} />
-            ) : bmoState === 'thinking' ? (
-              <View style={styles.mouthThinking} />
-            ) : (
-              <View style={styles.mouthIdle} />
-            )}
-          </View>
-        </Animated.View>
+        <Image
+          source={getCurrentFace()}
+          style={styles.face}
+          resizeMode="contain"
+        />
 
         {/* Status text */}
-        <Text style={styles.statusText}>{statusText()}</Text>
+        {statusText() !== '' && (
+          <Text style={styles.statusText}>{statusText()}</Text>
+        )}
 
         {/* Error */}
         {error && (
@@ -232,7 +231,7 @@ export default function BmoScreen({ onOpenSettings }: BmoScreenProps) {
         )}
       </View>
 
-      {/* Voice Button — PTT, basal visível */}
+      {/* Voice Button — PTT */}
       <View style={styles.voiceContainer}>
         {bmoState === 'thinking' || bmoState === 'speaking' ? (
           <TouchableOpacity style={styles.stopBtn} onPress={handleStop}>
@@ -249,9 +248,8 @@ export default function BmoScreen({ onOpenSettings }: BmoScreenProps) {
   );
 }
 
-const { width } = Dimensions.get('window');
-const FACE_SIZE = Math.min(width * 0.6, 240);
-const EYE_SIZE = FACE_SIZE * 0.22;
+const { width, height } = Dimensions.get('window');
+const FACE_SIZE = Math.min(width * 0.85, height * 0.5);
 
 const styles = StyleSheet.create({
   container: {
@@ -279,68 +277,11 @@ const styles = StyleSheet.create({
   },
   face: {
     width: FACE_SIZE,
-    height: FACE_SIZE,
-    borderRadius: 24,
-    backgroundColor: '#0d0d14',
-    borderWidth: 2,
-    borderColor: '#00E5FF33',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  eyesRow: {
-    flexDirection: 'row',
-    gap: EYE_SIZE * 0.5,
-    marginBottom: 30,
-  },
-  eye: {
-    width: EYE_SIZE,
-    height: EYE_SIZE,
-    borderRadius: EYE_SIZE / 2,
-  },
-  mouthContainer: {
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  mouthIdle: {
-    width: 60,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#00E5FF55',
-  },
-  mouthListening: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    borderWidth: 3,
-    borderColor: '#00FF66',
-    backgroundColor: '#00FF6611',
-  },
-  mouthThinking: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: '#FFD70044',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderTopWidth: 6,
-    borderTopColor: '#FFD700',
-  },
-  mouthSpeaking: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  mouthBar: {
-    width: 5,
-    height: 24,
-    borderRadius: 3,
-    backgroundColor: '#00E5FF',
+    height: FACE_SIZE * 0.6, // 800x480 = 5:3 aspect
+    borderRadius: 16,
   },
   statusText: {
-    marginTop: 24,
+    marginTop: 16,
     fontSize: 14,
     color: '#666',
     fontFamily: 'monospace',

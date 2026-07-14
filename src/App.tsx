@@ -25,12 +25,7 @@ type Screen = 'boot' | 'setup' | 'loading' | 'bmo' | 'settings';
 export default function App() {
   const [screen, setScreen] = useState<Screen>('boot');
 
-  useEffect(() => {
-    StatusBar.setHidden(true, 'none');
-    return () => {
-      StatusBar.setHidden(false, 'none');
-    };
-  }, []);
+  // StatusBar: translucent overlay via theme (no setHidden — crashes text selection)
 
   useEffect(() => {
     (async () => {
@@ -79,7 +74,7 @@ export default function App() {
   if (screen === 'boot') {
     return (
       <View style={styles.boot}>
-        <StatusBar hidden translucent barStyle="light-content" backgroundColor="#08080c" />
+        <StatusBar translucent barStyle="light-content" backgroundColor="#08080c" />
         <Text style={styles.bootText}>BMO</Text>
         <ActivityIndicator size="large" color="#00E5FF" style={{ marginTop: 16 }} />
       </View>
@@ -90,7 +85,7 @@ export default function App() {
   if (screen === 'setup') {
     return (
       <>
-        <StatusBar hidden translucent barStyle="light-content" backgroundColor="#08080c" />
+        <StatusBar translucent barStyle="light-content" backgroundColor="#08080c" />
         <DownloadScreen />
         <TouchableOpacity
           style={styles.finishBtn}
@@ -106,7 +101,7 @@ export default function App() {
   if (screen === 'loading') {
     return (
       <>
-        <StatusBar hidden translucent barStyle="light-content" backgroundColor="#08080c" />
+        <StatusBar translucent barStyle="light-content" backgroundColor="#08080c" />
         <LoadingScreen onReady={handleLoadingReady} onError={handleLoadingError} />
       </>
     );
@@ -116,7 +111,7 @@ export default function App() {
   if (screen === 'settings') {
     return (
       <>
-        <StatusBar hidden translucent barStyle="light-content" backgroundColor="#08080c" />
+        <StatusBar translucent barStyle="light-content" backgroundColor="#08080c" />
         <SettingsScreen onClose={handleCloseSettings} />
       </>
     );
@@ -125,7 +120,7 @@ export default function App() {
   // BMO — tela principal (rostinho + voz)
   return (
     <>
-      <StatusBar hidden translucent barStyle="light-content" backgroundColor="#08080c" />
+      <StatusBar translucent barStyle="light-content" backgroundColor="#08080c" />
       <BmoScreen onOpenSettings={handleOpenSettings} />
     </>
   );
