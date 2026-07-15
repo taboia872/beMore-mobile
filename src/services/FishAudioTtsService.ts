@@ -4,11 +4,6 @@
  * Fluxo: texto → POST fish.audio/api/open/v1/tts → MP3 binário → arquivo temp → react-native-sound toca
  * Substitui o TtsService Piper local (sherpa-onnx) por cloud API.
  *
- * Vantagens:
- *   - Voz real do BMO em pt-BR
- *   - Sem assets locais pesados (~100MB removidos do APK)
- *   - Sem descompressão/OOM
- *
  * Trade-off: requires internet para TTS. STT e LLM continuam 100% locais.
  */
 
@@ -39,19 +34,16 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
   let result = '';
   let i = 0;
 
-  // Processa em chunks de 3 bytes → 4 base64 chars
   for (i = 0; i < bytes.length - 2; i += 3) {
     const b1 = bytes[i];
     const b2 = bytes[i + 1];
     const b3 = bytes[i + 2];
-
     result += BASE64_CHARS[b1 >> 2];
     result += BASE64_CHARS[((b1 & 0x03) << 4) | (b2 >> 4)];
     result += BASE64_CHARS[((b2 & 0x0F) << 2) | (b3 >> 6)];
     result += BASE64_CHARS[b3 & 0x3F];
   }
 
-  // Bytes restantes (1 ou 2)
   const remaining = bytes.length - i;
   if (remaining === 1) {
     const b1 = bytes[i];
@@ -70,7 +62,7 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
   return result;
 }
 
-// ─── Sound module (lazy import para evitar crash se não linked) ─────────────
+// ─── Sound module (lazy import) ─────────────────────────────────────────────
 
 let Sound: any = null;
 async function getSoundModule(): Promise<any> {
@@ -83,7 +75,6 @@ async function getSoundModule(): Promise<any> {
 // ─── Public API ────────────────────────────────────────────────────────────
 
 export async function initFishTts(): Promise<void> {
-  // Carrega API key do AsyncStorage (se existir), senão usa default
   const storedKey = await AsyncStorage.getItem(API_KEY_STORAGE);
   if (storedKey) {
     apiKey = storedKey;
@@ -120,13 +111,13 @@ export async function speak(text: string): Promise<void> {
   }
   if (!text.trim()) return;
   if (isSpeaking) {
-    await stopSpeaking();
+    stopSpeaking();
   }
 
   const filePath = `${RNFS.CachesDirectoryPath}/tts_${Date.now()}.mp3`;
 
   try {
-    console.log('[FishAudioTTS] Requesting speech for:', text.substring(0, 80));
+    console.log('[FishAudioTTS] Requesting:', text.substring(0, 80));
 
     const response = await fetch(FISH_API_URL, {
       method: 'POST',
@@ -145,6 +136,7 @@ export async function speak(text: string): Promise<void> {
 
     if (!response.ok) {
       const errBody = await response.text().catch(() => '');
+      console.error('[FishAudioTTS] API error:', response.status, errBody);
       throw new Error(`Fish Audio API ${response.status}: ${errBody}`);
     }
 
@@ -152,27 +144,40 @@ export async function speak(text: string): Promise<void> {
     const base64 = arrayBufferToBase64(arrayBuffer);
 
     await RNFS.writeFile(filePath, base64, 'base64');
-    console.log('[FishAudioTTS] MP3 saved:', filePath, `(${(arrayBuffer.byteLength / 1024).toFixed(0)}KB)`);
+    const fileSizeKB = (arrayBuffer.byteLength / 1024).toFixed(0);
+    console.log('[FishAudioTTS] MP3 saved:', filePath, `(${fileSizeKB}KB)`);
 
-    // Toca com react-native-sound
+    if (arrayBuffer.byteLength < 100) {
+      console.error('[FishAudioTTS] MP3 too small — likely empty response');
+      throw new Error('Fish Audio returned empty audio');
+    }
+
+    // Toca com react-native-sound — promise resolve quando playback termina
     const SoundModule = await getSoundModule();
-    currentSound = new SoundModule(filePath, '', (error: any) => {
-      if (error) {
-        console.error('[FishAudioTTS] Sound load error:', error);
-        isSpeaking = false;
-        RNFS.unlink(filePath).catch(() => {});
-        onSpeakingEnd?.();
-        return;
-      }
-      isSpeaking = true;
-      currentSound.play((success: boolean) => {
-        isSpeaking = false;
-        currentSound = null;
-        RNFS.unlink(filePath).catch(() => {});
-        if (!success) {
-          console.warn('[FishAudioTTS] Playback completed with errors');
+
+    await new Promise<void>((resolve, reject) => {
+      currentSound = new SoundModule(filePath, '', (error: any) => {
+        if (error) {
+          console.error('[FishAudioTTS] Sound load error:', error);
+          reject(new Error('Sound load failed: ' + JSON.stringify(error)));
+          return;
         }
-        onSpeakingEnd?.();
+
+        console.log('[FishAudioTTS] Sound loaded OK, duration:', currentSound.getDuration(), 's');
+        isSpeaking = true;
+
+        currentSound.play((success: boolean) => {
+          isSpeaking = false;
+          currentSound = null;
+          RNFS.unlink(filePath).catch(() => {});
+          if (!success) {
+            console.warn('[FishAudioTTS] Playback ended with errors');
+          } else {
+            console.log('[FishAudioTTS] Playback OK');
+          }
+          onSpeakingEnd?.();
+          resolve();
+        });
       });
     });
   } catch (err) {

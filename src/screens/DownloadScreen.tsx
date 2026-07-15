@@ -108,7 +108,6 @@ export default function DownloadScreen() {
   };
 
   const textModels = MODELS.filter((m) => m.type === 'text');
-  const visionModels = MODELS.filter((m) => m.type === 'vision');
   const whisperModels = MODELS.filter((m) => m.type === 'whisper');
 
   const renderCard = (model: ModelInfo) => {
@@ -152,12 +151,6 @@ export default function DownloadScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>RECONHECIMENTO DE VOZ (STT)</Text>
         {whisperModels.map(renderCard)}
-      </View>
-
-      {/* Vision Models */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>MODELOS DE VISÃO</Text>
-        {visionModels.map(renderCard)}
       </View>
 
 

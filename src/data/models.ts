@@ -56,17 +56,17 @@ export const MODELS: ModelInfo[] = [
     url: 'https://huggingface.co/openbmb/MiniCPM5-1B-GGUF/resolve/main/MiniCPM5-1B-Q4_K_M.gguf',
     filename: 'MiniCPM5-1B-Q4_K_M.gguf',
   },
-  {
-    id: 'moondream',
-    name: 'Moondream',
-    author: 'salivosa/moondream2-q4_k.gguf',
-    description: 'Modelo de visão. Analisa imagens. Baixe sob demanda.',
-    size: '~1.7 GB',
-    sizeMB: 1700,
-    type: 'vision',
-    url: 'https://huggingface.co/salivosa/moondream2-gguf/resolve/main/moondream2-q4_k.gguf',
-    filename: 'moondream2-q4_k.gguf',
-  },
+  // {
+  //   id: 'moondream',
+  //   name: 'Moondream',
+  //   author: 'salivosa/moondream2-q4_k.gguf',
+  //   description: 'Modelo de visão. Analisa imagens. Baixe sob demanda.',
+  //   size: '~1.7 GB',
+  //   sizeMB: 1700,
+  //   type: 'vision',
+  //   url: 'https://huggingface.co/salivosa/moondream2-gguf/resolve/main/moondream2-q4_k.gguf',
+  //   filename: 'moondream2-q4_k.gguf',
+  // },
   // ===== Whisper STT Models =====
   {
     id: 'whisper-tiny-q5',
