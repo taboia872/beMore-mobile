@@ -15,7 +15,7 @@ import {
 } from '../services/LlamaService';
 import {
   speak as ttsSpeak, stopSpeaking as ttsStop, isTtsInitialized,
-} from '../services/TtsService';
+} from '../services/FishAudioTtsService';
 import { loadSettings } from '../data/appSettings';
 import type { ChatMessage } from '../types';
 

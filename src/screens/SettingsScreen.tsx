@@ -15,10 +15,8 @@ import {
 } from '../data/appSettings';
 import { MODELS } from '../data/models';
 import { WHISPER_MODELS } from '../data/whisperModels';
-import { TTS_VOICES } from '../services/TtsService';
 import { isModelDownloaded } from '../services/DownloadManager';
 import { isWhisperModelDownloaded } from '../services/WhisperService';
-import { isVoiceDownloaded } from '../services/TtsService';
 
 interface SettingsScreenProps {
   onClose: () => void;
@@ -55,11 +53,8 @@ export default function SettingsScreen({ onClose }: SettingsScreenProps) {
       }
       setDownloadedWhisper(whisperSet);
 
-      const voiceSet = new Set<string>();
-      for (const v of TTS_VOICES) {
-        if (await isVoiceDownloaded(v.id)) voiceSet.add(v.id);
-      }
-      setDownloadedVoices(voiceSet);
+      // Fish Audio TTS — cloud, sempre "disponível"
+      setDownloadedVoices(new Set(['bmo-fish-audio']));
     })();
   }, []);
 
@@ -188,13 +183,16 @@ export default function SettingsScreen({ onClose }: SettingsScreenProps) {
           )}
         </View>
 
-        {/* TTS Voice */}
+        {/* TTS Voice — Fish Audio Cloud */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>VOZ (TTS)</Text>
-          {TTS_VOICES.map(renderVoiceOption)}
-          {downloadedVoices.size === 0 && (
-            <Text style={styles.emptyText}>Nenhuma voz baixada</Text>
-          )}
+          <View style={styles.optionRow}>
+            <Text style={styles.optionIcon}>●</Text>
+            <View>
+              <Text style={styles.optionText}>BMO (Fish Audio)</Text>
+              <Text style={styles.optionSub}>Voz do BMO — Cloud API pt-BR</Text>
+            </View>
+          </View>
         </View>
       </ScrollView>
 

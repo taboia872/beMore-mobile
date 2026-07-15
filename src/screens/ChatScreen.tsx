@@ -13,14 +13,11 @@ import ModelSelector from '../components/ModelSelector';
 import VoiceButton from '../components/VoiceButton';
 import {
   isTtsInitialized as ttsIsReady,
-  getActiveVoiceId,
-  initializeTts,
   speak as ttsSpeak,
   stopSpeaking as ttsStop,
   deinitializeTts,
-  isVoiceDownloaded,
-  TTS_VOICES,
-} from '../services/TtsService';
+  getActiveVoiceId,
+} from '../services/FishAudioTtsService';
 
 interface ChatScreenProps {
   onBack: () => void;
@@ -79,25 +76,11 @@ export default function ChatScreen({ onBack }: ChatScreenProps) {
     setTtsLoading(true);
     setTtsStatus(null);
     try {
-      // Procura primeira voz já baixada
-      let voiceId: string | null = null;
-      for (const v of TTS_VOICES) {
-        if (await isVoiceDownloaded(v.id)) {
-          voiceId = v.id;
-          break;
-        }
-      }
-
-      if (!voiceId) {
-        setTtsStatus('Baixe uma voz na tela de Downloads primeiro');
-        setTtsLoading(false);
-        return;
-      }
-
-      setTtsStatus('Carregando voz...');
-      console.log('[ChatScreen] TTS toggle: voiceId =', voiceId);
-      await initializeTts(voiceId);
-      console.log('[ChatScreen] TTS: initializeTts resolved');
+      setTtsStatus('Conectando ao Fish Audio...');
+      // Fish Audio TTS — cloud, sem download
+      const { initFishTts } = require('../services/FishAudioTtsService');
+      await initFishTts();
+      console.log('[ChatScreen] TTS: Fish Audio initialized');
       setTtsEnabled(true);
       setTtsStatus(null);
     } catch (err) {

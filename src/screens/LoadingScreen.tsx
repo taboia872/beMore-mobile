@@ -8,7 +8,7 @@ import { StyleSheet, View, Text, ActivityIndicator } from 'react-native';
 import { loadSettings, autoDetectDownloadedModels, saveSettings } from '../data/appSettings';
 import { loadModel, isModelLoaded, setSystemPrompt } from '../services/LlamaService';
 import { loadWhisperModel, isWhisperLoaded, findAnyDownloadedWhisperModel } from '../services/WhisperService';
-import { initializeTts, isTtsInitialized, getActiveVoiceId } from '../services/TtsService';
+import { initFishTts, isTtsInitialized } from '../services/FishAudioTtsService';
 
 interface LoadingScreenProps {
   onReady: () => void;
@@ -87,11 +87,11 @@ export default function LoadingScreen({ onReady, onError }: LoadingScreenProps) 
       // === Step 3: TTS ===
       setCurrentStep('tts');
       updateStep('tts', 'loading');
-      if (settings.selectedVoice) {
-        if (!isTtsInitialized()) {
-          await initializeTts(settings.selectedVoice);
-        }
-        updateStep('tts', 'ok');
+      // Fish Audio TTS — cloud API, sem download de modelo
+      if (!isTtsInitialized()) {
+        await initFishTts();
+      }
+      updateStep('tts', 'ok');
       } else {
         updateStep('tts', 'skipped');
       }

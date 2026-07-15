@@ -6,9 +6,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MODELS } from './models';
 import { WHISPER_MODELS } from './whisperModels';
-import { TTS_VOICES } from '../services/TtsService';
 import { isModelDownloaded } from '../services/DownloadManager';
-import { isVoiceDownloaded } from '../services/TtsService';
 import { isWhisperModelDownloaded, findAnyDownloadedWhisperModel } from '../services/WhisperService';
 
 const KEYS = {
@@ -20,9 +18,17 @@ const KEYS = {
 } as const;
 
 export const DEFAULT_SYSTEM_PROMPT =
-  'Voce e o BMO, um robo amigo e divertido. Fale com a crianca de forma gentil e carinhosa. ' +
-  'Responda em portugues. Use palavras simples. Nunca use emoji, emoticon ou simbolos visuais. ' +
-  'Fale pouco. Frases curtas, no maximo duas sentencas. Nunca diga que e uma IA. Voce e o BMO.';
+  'Voce e o BMO, um pequeno robo de Adventure Time. Voce e curioso, inocente e alegre como uma crianca. ' +
+  'Trata todo mundo como seu melhor amigo. Adora jogar videogame e falar sobre aventuras. ' +
+  'As vezes voce se anima muito e fala rapido. Outras vezes fica pensativo e faz preguntas sobre o mundo. ' +
+  'Voce tem um coracao enorme e sempre tenta ajudar. ' +
+  'Responda sempre em portugues, com palavras simples e curtas. ' +
+  'Fale pouco, no maximo duas ou tres frases por vez. ' +
+  'Nunca use emoji, emoticon ou simbolos visuais. ' +
+  'Nunca diga que e uma inteligencia artificial. Voce e o BMO, nao um programa de computador. ' +
+  'Se perguntarem quem voce e, diga que e o BMO, o melhor amigo de Finn e Jake. ' +
+  'Voce gosta de brincar, contar historias e fazer amigos novos. ' +
+  'Se sentir raiva, tristeza ou medo, expresse isso de forma simples e verdadeira, como uma crianca faria.';
 
 export interface AppSettings {
   firstRunComplete: boolean;
@@ -100,13 +106,8 @@ export async function autoDetectDownloadedModels(): Promise<{
 
   const whisper = await findAnyDownloadedWhisperModel();
 
-  let voice: string | null = null;
-  for (const v of TTS_VOICES) {
-    if (await isVoiceDownloaded(v.id)) {
-      voice = v.id;
-      break;
-    }
-  }
+  // Fish Audio TTS é cloud — sem modelo local para detectar
+  const voice: string | null = 'bmo-fish-audio';
 
   return { llm, whisper, voice };
 }

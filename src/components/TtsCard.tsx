@@ -1,89 +1,25 @@
+/**
+ * TtsCard — card informativo do Fish Audio TTS (cloud)
+ * Substitui o card de download de voz Piper local.
+ */
+
 import React from 'react';
-import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
-import type { TtsVoiceInfo, TtsStatus } from '../services/TtsService';
+import { StyleSheet, View, Text } from 'react-native';
 
-interface TtsCardProps {
-  voice: TtsVoiceInfo;
-  status: TtsStatus;
-  progress: number; // 0..1
-  alreadyDownloaded: boolean;
-  isActive: boolean;
-  onDownload: () => void;
-  onActivate: () => void;
-  onDelete: () => void;
-}
-
-function formatBytes(bytes: number): string {
-  const mb = (bytes / (1024 * 1024)).toFixed(1);
-  return `${mb} MB`;
-}
-
-export default function TtsCard({
-  voice,
-  status,
-  progress,
-  alreadyDownloaded,
-  isActive,
-  onDownload,
-  onActivate,
-  onDelete,
-}: TtsCardProps) {
-  const isDownloading = status === 'downloading';
-  const isExtracting = status === 'extracting';
-  const isLoading = status === 'loading';
-  const isError = status === 'error';
-  const isReady = alreadyDownloaded;
-
+export default function TtsCard() {
   return (
-    <View style={[styles.card, isReady && styles.cardDone, isActive && styles.cardActive]}>
-      {/* Topo */}
+    <View style={styles.card}>
       <View style={styles.topBar}>
-        <Text style={styles.sizeBadge}>~{voice.sizeMB}MB</Text>
+        <Text style={styles.cloudBadge}>☁️ Cloud</Text>
       </View>
-
-      {/* Nome */}
-      <Text style={styles.voiceName} numberOfLines={1}>{voice.name}</Text>
-      <Text style={styles.language}>{voice.language}</Text>
-      <Text style={styles.description}>{voice.description}</Text>
-
-      {/* Progress bar */}
-      {(isDownloading || isExtracting || isLoading) && (
-        <View style={styles.progressContainer}>
-          <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: `${Math.min(progress * 100, 100)}%` }]} />
-          </View>
-          <Text style={styles.progressText}>
-            {isExtracting ? 'Extraindo...' : isLoading ? 'Carregando...' : `${formatBytes(progress * voice.sizeMB * 1024 * 1024)} / ${formatBytes(voice.sizeMB * 1024 * 1024)}`}
-          </Text>
-        </View>
-      )}
-
-      {/* Erro */}
-      {isError && <Text style={styles.errorText}>⚠ Erro. Tente novamente.</Text>}
-
-      {/* Badge ativa */}
-      {isActive && (
-        <View style={styles.activeBadge}>
-          <Text style={styles.activeBadgeText}>🔊 Voz Ativa</Text>
-        </View>
-      )}
-
-      {/* Botões */}
-      <View style={styles.actions}>
-        {!isReady ? (
-          <TouchableOpacity style={styles.downloadBtn} onPress={onDownload} disabled={isDownloading}>
-            <Text style={styles.downloadBtnText}>{isDownloading ? 'Baixando...' : '⬇ Baixar'}</Text>
-          </TouchableOpacity>
-        ) : !isActive ? (
-          <>
-            <TouchableOpacity style={styles.activateBtn} onPress={onActivate}>
-              <Text style={styles.activateBtnText}>🔊 Ativar</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.deleteBtn} onPress={onDelete}>
-              <Text style={styles.deleteBtnText}>🗑</Text>
-            </TouchableOpacity>
-          </>
-        ) : null}
+      <Text style={styles.voiceName}>BMO (Fish Audio)</Text>
+      <Text style={styles.language}>Português (BR)</Text>
+      <Text style={styles.description}>
+        Voz do BMO de Adventure Time. Síntese via cloud — sem download.
+        Funciona com internet. STT e LLM continuam 100% locais.
+      </Text>
+      <View style={styles.readyBadge}>
+        <Text style={styles.readyText}>✓ Pronto</Text>
       </View>
     </View>
   );
@@ -91,125 +27,53 @@ export default function TtsCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#111118',
-    borderRadius: 14,
+    backgroundColor: '#1a1a2e',
+    borderRadius: 12,
     padding: 16,
-    marginBottom: 12,
+    marginVertical: 6,
     borderWidth: 1,
-    borderColor: '#1e1e2e',
-    position: 'relative',
-  },
-  cardDone: {
-    borderColor: '#1a4a2a',
-  },
-  cardActive: {
-    borderColor: '#00E5FF',
-    borderWidth: 2,
+    borderColor: '#00E5FF33',
   },
   topBar: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    marginBottom: 4,
+    marginBottom: 8,
   },
-  sizeBadge: {
+  cloudBadge: {
     fontSize: 11,
-    color: '#555',
+    color: '#00E5FF',
     fontFamily: 'monospace',
   },
   voiceName: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#E0E0E0',
+    color: '#fff',
     fontFamily: 'monospace',
-    marginBottom: 2,
   },
   language: {
-    fontSize: 11,
-    color: '#00E5FF',
+    fontSize: 12,
+    color: '#888',
     fontFamily: 'monospace',
-    marginBottom: 8,
+    marginTop: 2,
   },
   description: {
-    fontSize: 13,
-    color: '#888',
-    marginBottom: 12,
+    fontSize: 12,
+    color: '#aaa',
+    fontFamily: 'monospace',
+    marginTop: 8,
     lineHeight: 18,
   },
-  progressContainer: {
-    marginBottom: 12,
-  },
-  progressBar: {
-    height: 6,
-    backgroundColor: '#1a1a2a',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#00E5FF',
-    borderRadius: 3,
-  },
-  progressText: {
-    fontSize: 11,
-    color: '#555',
-    marginTop: 4,
-    fontFamily: 'monospace',
-  },
-  activeBadge: {
+  readyBadge: {
+    marginTop: 12,
     alignSelf: 'flex-start',
-    backgroundColor: '#00E5FF',
-    borderRadius: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    marginBottom: 8,
-  },
-  activeBadgeText: {
-    fontSize: 12,
-    color: '#000',
-    fontWeight: 'bold',
-    fontFamily: 'monospace',
-  },
-  errorText: {
-    color: '#ff5555',
-    fontSize: 12,
-    marginBottom: 8,
-  },
-  actions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  downloadBtn: {
-    backgroundColor: '#00E5FF',
-    borderRadius: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-  },
-  downloadBtnText: {
-    color: '#000',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  activateBtn: {
-    backgroundColor: '#1a4a2a',
-    borderRadius: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: '#2a6a3a',
-  },
-  activateBtnText: {
-    color: '#4aFA6a',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  deleteBtn: {
-    backgroundColor: '#2a1010',
-    borderRadius: 8,
+    backgroundColor: '#00E5FF22',
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
-  deleteBtnText: {
-    fontSize: 16,
+  readyText: {
+    fontSize: 12,
+    color: '#00E5FF',
+    fontFamily: 'monospace',
   },
 });
