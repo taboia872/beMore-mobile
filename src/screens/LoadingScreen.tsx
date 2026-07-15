@@ -92,9 +92,6 @@ export default function LoadingScreen({ onReady, onError }: LoadingScreenProps) 
         await initFishTts();
       }
       updateStep('tts', 'ok');
-      } else {
-        updateStep('tts', 'skipped');
-      }
 
       // === Done ===
       updateStep('done', 'ok');
