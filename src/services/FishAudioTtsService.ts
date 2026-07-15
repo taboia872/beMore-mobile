@@ -12,7 +12,6 @@
  * Trade-off: requires internet para TTS. STT e LLM continuam 100% locais.
  */
 
-import { NativeModules } from 'react-native';
 import RNFS from 'react-native-fs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -31,17 +30,44 @@ let currentSound: any = null;
 let apiKey: string = DEFAULT_API_KEY;
 let onSpeakingEnd: (() => void) | null = null;
 
-// ─── Base64 chunking (evita stack overflow em blobs grandes) ────────────────
+// ─── Base64 encoding (RN não tem btoa nativo) ─────────────────────────────
+
+const BASE64_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  let binary = '';
   const bytes = new Uint8Array(buffer);
-  const chunkSize = 0x8000; // 32KB chunks
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    const chunk = bytes.subarray(i, i + chunkSize);
-    binary += String.fromCharCode.apply(null, Array.from(chunk));
+  let result = '';
+  let i = 0;
+
+  // Processa em chunks de 3 bytes → 4 base64 chars
+  for (i = 0; i < bytes.length - 2; i += 3) {
+    const b1 = bytes[i];
+    const b2 = bytes[i + 1];
+    const b3 = bytes[i + 2];
+
+    result += BASE64_CHARS[b1 >> 2];
+    result += BASE64_CHARS[((b1 & 0x03) << 4) | (b2 >> 4)];
+    result += BASE64_CHARS[((b2 & 0x0F) << 2) | (b3 >> 6)];
+    result += BASE64_CHARS[b3 & 0x3F];
   }
-  return btoa(binary);
+
+  // Bytes restantes (1 ou 2)
+  const remaining = bytes.length - i;
+  if (remaining === 1) {
+    const b1 = bytes[i];
+    result += BASE64_CHARS[b1 >> 2];
+    result += BASE64_CHARS[(b1 & 0x03) << 4];
+    result += '==';
+  } else if (remaining === 2) {
+    const b1 = bytes[i];
+    const b2 = bytes[i + 1];
+    result += BASE64_CHARS[b1 >> 2];
+    result += BASE64_CHARS[((b1 & 0x03) << 4) | (b2 >> 4)];
+    result += BASE64_CHARS[(b2 & 0x0F) << 2];
+    result += '=';
+  }
+
+  return result;
 }
 
 // ─── Sound module (lazy import para evitar crash se não linked) ─────────────

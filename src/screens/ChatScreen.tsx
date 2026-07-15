@@ -17,6 +17,7 @@ import {
   stopSpeaking as ttsStop,
   deinitializeTts,
   getActiveVoiceId,
+  initFishTts,
 } from '../services/FishAudioTtsService';
 
 interface ChatScreenProps {
@@ -78,7 +79,6 @@ export default function ChatScreen({ onBack }: ChatScreenProps) {
     try {
       setTtsStatus('Conectando ao Fish Audio...');
       // Fish Audio TTS — cloud, sem download
-      const { initFishTts } = require('../services/FishAudioTtsService');
       await initFishTts();
       console.log('[ChatScreen] TTS: Fish Audio initialized');
       setTtsEnabled(true);
